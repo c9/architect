@@ -1,5 +1,7 @@
-var architect = require('./architect');
-var config = require(process.argv[2] || './default-config');
+var path = require('path');
+var architect = require('architect');
+var configName = process.argv[2] || "default";
+var config = require(path.resolve("./configs/", configName));
 
 architect.createApp(config, function (err, app) {
 	if (err) {

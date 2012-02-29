@@ -1,4 +1,4 @@
-var staticDir = __dirname + "/www";
+var staticDir = __dirname + "/../www";
 var staticStat = require('fs').statSync(staticDir);
 
 module.exports = {
@@ -19,25 +19,25 @@ module.exports = {
 		},
 	},	
 	plugins: [
-		{	module: "./plugins/http.js",
+		{	module: "../plugins/http.js",
 			provides: ["http"],
 			port: process.env.PORT || 8080,
 			container: "www",
 		},
-		{	module: "./plugins/static-file.js",
+		{	module: "../plugins/static-file.js",
 			dependencies: ["http"],
 			root: staticDir,
 			container: "www",
 		},
-		// {	module: "./plugins/calculator.js",
+		// {	module: "../plugins/calculator.js",
 		// 	dependencies: ["http", "auth"],
 		// 	container: "www",
 		// },
-		// {	module: "./plugins/auth.js",
+		// {	module: "../plugins/auth.js",
 		// 	dependencies: ["database"],
 		// 	container: ["auth"],
 		// },
-		// {	module: "./plugins/db.js",
+		// {	module: "../plugins/db.js",
 		// 	provides: ["database"],
 		// 	container: "db",
 		// }
