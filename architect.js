@@ -18,16 +18,14 @@ function createApp(config, callback) {
 		var modulePath = require.resolve(options.module);
 		var startup = require(modulePath);
 		var imports = {};
-		if (options.dependencies) {
-			options.dependencies.forEach(function (dependency) {
-				if (!services.hasOwnProperty(dependency)) {
-					throw new Error(modulePath + " depends on " + dependency + " but it's not loaded yet.");
-				}
-				imports[dependency] = services[dependency];
-			});
-		}
+		options.dependencies && options.dependencies.forEach(function (dependency) {
+			if (!services.hasOwnProperty(dependency)) {
+				throw new Error(modulePath + " depends on " + dependency + " but it's not loaded yet.");
+			}
+			imports[dependency] = services[dependency];
+		});
 		startup(options, imports, function (err, plugin) {
-			options.provides.forEach(function (name) {
+			options.provides && options.provides.forEach(function (name) {
 				if (!plugin.hasOwnProperty(name)) {
 					throw new Error(modulePath + " declares it provides " + name + " but didn't export it.");
 				}
@@ -40,7 +38,6 @@ function createApp(config, callback) {
 			loadPlugin(index + 1);
 		});
 	}
-
 }
 
 
