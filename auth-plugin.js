@@ -2,7 +2,7 @@
 // Also injected into this environment is "process", "require", and "log"
 // from the local node process.
 // See master.js for the functions on the master instance
-module.exports = function startup(options, master) {
+module.exports = function startup(options, master, callback) {
 
 	// Here connect to a database or whatever is needed
 	// and other setup code.

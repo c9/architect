@@ -2,8 +2,8 @@ module.exports = {
 	name: "Cloud9 Free Version",
     plugins: {
     	httpServer: {
+    		module: "./http-plugin.js",
     		port: process.env.PORT || 8080,
-    		host: "0.0.0.0",
     		staticFiles: __dirname + "/www"
         },
 
