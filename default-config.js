@@ -1,18 +1,45 @@
+var staticDir = __dirname + "/www";
+var staticStat = require('fs').statSync(staticDir);
+
 module.exports = {
 	name: "Cloud9 Free Version",
-    plugins: {
-    	httpServer: {
-    		module: "./http-plugin.js",
-    		port: process.env.PORT || 8080,
-    		staticFiles: __dirname + "/www"
-        },
-
-        // "architect-demo.hello": {
-        //     "base": __dirname + "/../plugins/architect-demo.hello"
-        // },
-        // "architect-demo.log": {
-        //     "base": "architect/plugins/architect.log",
-        //     "out-of-process": true
-        // }
-    }
+	title: "c9-free-version",
+	containers: {
+		db: {
+			ssh: { host: "creationix.com" },
+			title: "c9-database-worker",
+			uid: "nobody",
+			gid: "nobody"
+		},
+		www: {
+			title: "c9-http-worker",
+			// This process is run as whoever owns the www folder
+			uid: staticStat.uid,
+			gid: staticStat.gid
+		},
+	},	
+	plugins: [
+		{	module: "./http-plugin.js",
+			provides: ["http"],
+			port: process.env.PORT || 8080,
+			container: "www",
+		},
+		// {	module: "./static-file-plugin.js",
+		// 	dependencies: ["http"],
+		// 	root: staticDir,
+		// 	container: "www",
+		// },
+		// {	module: "./calculator-plugin.js",
+		// 	dependencies: ["http", "auth"],
+		// 	container: "www",
+		// },
+		// {	module: "./auth-plugin.js",
+		// 	dependencies: ["database"],
+		// 	container: ["auth"],
+		// },
+		// {	module: "./db-plugin.js",
+		// 	provides: ["database"],
+		// 	container: "db",
+		// }
+	]
 };	
