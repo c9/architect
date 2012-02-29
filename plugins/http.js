@@ -56,7 +56,7 @@ module.exports = function startup(options, imports, register) {
 			if (!match) return handle();
 
 			// Match the regexp matches with the named captures in the original route
-			var params = {};
+			var params = req.params = {};
 			for (var j = 0, l2 = route.names.length; j < l2; j++) {
 				params[route.names[j]] = match[j + 1];
 			}
@@ -66,7 +66,7 @@ module.exports = function startup(options, imports, register) {
 				throw new Error("TODO: Implement me");
 			}
 
-			route.handler(req, res, params, next);
+			route.handler(req, res, next);
 		}
 
 		// Recursivly go to the next handler unless there was an error.
@@ -76,6 +76,58 @@ module.exports = function startup(options, imports, register) {
 		}
 	});
 
+	var api = {
+		get: function (route, handler, callback) {
+			addRoute("GET", route, handler, callback);
+		},
+		put: function (route, handler, callback) {
+			addRoute("PUT", route, handler, callback);
+		},
+		post: function (route, handler, callback) {
+			addRoute("POST", route, handler, callback);
+		},
+		del: function (route, handler, callback) {
+			addRoute("DELETE", route, handler, callback);
+		},
+		raw: function (handler, callback) {
+			routes.push({raw:handler});
+			callback();
+		},
+		addRoutes: function (routes, callback) {
+			var left = 1;
+			routes.forEach(function (args) {
+				var name = args.shift();
+				args.push(check);
+				api[name].apply(null, args);
+			});
+			check();
+			function check() {
+				if (!--left) callback();
+			}
+		}
+	}
+
+	function addRoute(method, pattern, handler, callback) {
+		var names = [];
+		var compiled = "^" + pattern.replace(/:[a-z$_][a-z0-9$_]*.?/gi, function (match) {
+			if ((/[^a-z$_0-9]$/i).test(match)) {
+				var end = match.substr(match.length - 1);
+				names.push(match.substr(1, match.length - 2));
+				return "([^" + end + "]+)" + end;
+			}
+    		names.push(match.substr(1));
+    		return "(.*)";
+  		}) + "$";
+		var regexp = new RegExp(compiled);
+		routes.push({
+			method: method,
+			regexp: regexp,
+			names: names,
+			handler: handler
+		});
+		callback();
+	}
+
 	server.listen(port, host, function (err) {
 		if (err) return register(err);
 		console.log("HTTP server listening on http://%s:%s/", options.host || "localhost", port);
@@ -84,24 +136,7 @@ module.exports = function startup(options, imports, register) {
 			onDestruct: function (callback) {
 				server.close(callback);
 			},
-			http: {
-				get: function (route, handler, callback) {
-					addRoute("GET", route, handler, callback);
-				},
-				put: function (route, handler, callback) {
-					addRoute("PUT", route, handler, callback);
-				},
-				post: function (route, handler, callback) {
-					addRoute("POST", route, handler, callback);
-				},
-				del: function (route, handler, callback) {
-					addRoute("DELETE", route, handler, callback);
-				},
-				raw: function (handler, callback) {
-					routes.push({raw:handler});
-					callback();
-				}
-			}
+			http: api
 		});
 	});
 };

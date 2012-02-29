@@ -9,5 +9,5 @@ architect.createApp(config, function (err, app) {
 		throw err;
 	}
 	console.log("The '%s' app is now running!", config.name);
-	console.log(app);
+	// console.log(app);
 });
