@@ -11,7 +11,7 @@
         "node": "~0.6.11"
     },
     "dependencies": {
-        "remoteagent-protocol": "0.0.1"
+        "remoteagent-protocol": "0.0.2"
     },
     "devDependencies": {},
     "optionalDependencies": {}
