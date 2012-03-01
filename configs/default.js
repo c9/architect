@@ -19,7 +19,7 @@ module.exports = {
       plugins: {
         http: { module: "./plugins/http.js",
           provides: ["http"],
-          port: process.env.PORT || 80,
+          port: process.env.PORT || (process.getuid() ? 8080 : 80),
         },
         static: { module: "./plugins/static-file.js",
           dependencies: ["http"],

@@ -130,7 +130,7 @@ module.exports = function startup(options, imports, register) {
 
 	server.listen(port, host, function (err) {
 		if (err) return register(err);
-		console.log("HTTP server listening on http://%s:%s/", options.host || "localhost", port);
+		console.log("HTTP server listening on http://%s%s/", options.host || "localhost", port === 80 ? "" : ":" + port);
 		register(null, {
 			// When a plugin is unloaded, it's onDestruct function will be called if there is one.
 			onDestruct: function (callback) {
