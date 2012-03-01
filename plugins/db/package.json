@@ -1,9 +1,0 @@
-{
-    "name": "db",
-    "version": "0.0.1",
-    "main": "db.js",
-
-    "plugin": {
-        "provides": ["database"]
-    }
-}
