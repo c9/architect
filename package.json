@@ -1,18 +1,30 @@
 {
-    "author": "Tim Caswell <tim@c9.io>",
     "name": "architect",
     "description": "A Simple yet powerful plugin system for large-scale node applications",
     "version": "0.0.0",
+    
+    "author": "ajax.org B.V. <info@ajax.org>",
+    "contributors": [
+        { "name": "Tim Caswell", "email": "tim@c9.io>" },
+        { "name": "Fabian Jakobs", "email": "fabian@c9.io" }
+    ],
     "repository": {
         "url": ""
     },
     "main": "architect.js",
-    "engines": {
-        "node": "~0.6.11"
-    },
+    "repository" : {
+        "type" : "git",
+        "url" : "http://github.com/c9/architect.git"
+    },   
+    
     "dependencies": {
         "remoteagent-protocol": "0.0.2"
     },
     "devDependencies": {},
-    "optionalDependencies": {}
+    "optionalDependencies": {},
+    
+    "licenses" : [{
+        "type" : "MIT",
+        "url" : "http://github.com/c9/architect/raw/master/LICENSE"
+    }]
 }
