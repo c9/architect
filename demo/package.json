@@ -1,17 +1,17 @@
 {
   "author": "Tim Caswell <tim@c9.io>",
-  "name": "architect",
-  "description": "A Simple yet powerful plugin system for large-scale node applications",
+  "name": "architect-demo",
+  "description": "plugin system experiment",
   "version": "0.0.0",
   "repository": {
     "url": ""
   },
-  "main": "architect.js",
   "engines": {
     "node": "~0.6.11"
   },
   "dependencies": {
-    "remoteagent-protocol": "0.0.1"
+    "stack": "~0.1.0",
+    "creationix": "~0.3.1"
   },
   "devDependencies": {},
   "optionalDependencies": {}
