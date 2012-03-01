@@ -2,6 +2,10 @@
 
 While working on modifying architect to work with async bound APIs and multiple processes, I got overwhelmed and wrote this framework from scratch.  It borrowed many ideas from the original architect framework.  The main new idea is called "Containers".
 
+## Running the sample.
+
+Running is simple, just `npm install` and `node server.js`.  Optionally specify a config profile like `node server.js simple`.
+
 ## What is a Container?
 
 A container is a process that contains plugins.  This means that the system is no longer plugin oriented at the only unit to move things around with internal and external being the only options regarding processes.  Now you can define a family of container processes (including the master process itself if desired) and put plugins wherever they make sense.  To help explain this, here is a simple config file using multiple containers:
