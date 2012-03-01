@@ -1,75 +1,100 @@
-/*
-
-A container has:
-
- - services it provides
- - plugins it's running
- - a way to accept connections (unix socket)
- - a map of all containers and services
- - a router to route requests within itself or to other containers
-
-The master process can contain a container too.    It works no different except
-for bootstrapping.
-
-*/
-
 var net = require('net');
 var path = require('path');
 var protocol = require('remoteagent-protocol');
 
-// Export listen for when the master process wants a container
-exports.listen = listen;
-
-
-// For the child_process spawn case, the code is self starting.
-// SOCKET_PATH is the name of this container
-if (process.env.SOCKET_PATH) {
-    listen(process.env.SOCKET_PATH, function (err, functions) {
+// if we're a worker process, this message will be our container config
+process.once('message', function (config) {
+    createContainer(config, function (err, container) {
         if (err) throw err;
-        // Tell our parent we're initialized.
-        process.stdin.write("\0");
+        process.send(container);
+    });
+});
+
+exports.createContainer = createContainer;
+function createContainer(config, callback) {
+    var serviceMap = {}; // For all services
+    var services = {}; // local services provided by this container
+    var plugins = []; // plugins that live in this container
+    var pendingPlugins = []; // plugins that are waiting on their dependencies
+
+
+    var functions = {
+        onBroadcast: onBroadcast,
+        onRequest: onRequest,
+        listen: listen,
+        connect: connect
+    }
+
+    config.pid = process.pid;
+    if (!config.socketPath) {
+        config.functions = functions;
+    }
+
+    loadPlugins();
+    return callback(null, config);
+
+    function onBroadcast(name, args) {
+
+    }
+
+    function onRequest(name, args) {
+
+    }
+
+    function loadPlugins() {
+
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+
+    // function mapService(serviceName, containerName) {
+    //     serviceMap[serviceName] = containerName;
+
+    //     // Since there is a new service available, we might be able to start some pending plugins.
+    //     var i = pendingPlugins.length;
+    //     while (i--) {
+    //         var item = pendingPlugins[i];
+    //         if (checkDependencies(item.manifest.dependencies)) {
+    //             pendingPlugins.splice(i, 1);
+    //             startPlugin(item.options, item.callback);
+    //         }
+    //     }
+    // }
+
+}
+
+
+
+
+
+// Connect to a remote container
+var connections = {};
+function connect(name, callback) {
+    if (connections.hasOwnProperty(name)) {
+        return callback(null, connections[name]);
+    }
+    var socketPath = path.join(tmpdir, name + ".socket");
+    var connection = connections[name] = {
+        name: name,
+        socketPath: socketPath
+    };
+
+    var client = net.connect(socketPath, function () {
+        protocol.connectToClient(client, client, function (err, remote, functions) {
+            if (err) return callback(err);
+            connection.remote = remote;
+            connection.functions = functions;
+            callback(null, connection);
+        });
     });
 }
 
+
+
 function listen(socketPath, callback) {
-    var serviceMap = {}; // For all services
-    var services = {}; // local services provided by this container
-    var plugins = {}; // plugins that live in this container
-    var pendingPlugins = {}; // plugins that are waiting on their dependencies
-    var connections = {};
-    var emit; // function used to emit global messages
-    var name; // name of this container
-    var config;
 
-    function nameToSocketPath(name) {
-        return path.join(config.base, name + ".socket");
-    }
 
-    function connect(name, callback) {
-        if (connections.hasOwnProperty(name)) return callback(null, connections[name]);
-        var connection = connections[name] = {name:name};
-        var client = net.connect(nameToSocketPath(name), function () {
-            protocol.connectToClient(client, client, function (err, remote, functions) {
-                if (err) return callback(err);
-                connection.remote = remote;
-                connection.functions = functions;
-                callback(null, connection);
-            });
-        });
-    }
 
-    function mapService(serviceName, containerName) {
-        serviceMap[serviceName] = containerName;
-
-        // Since there is a new service available, we might be able to start some pending plugins.
-        Object.keys(pendingPlugins).forEach(function (key) {
-            var item = pendingPlugins[key];
-            if (checkDependencies(item.manifest.dependencies)) {
-                delete pendingPlugins[key];
-                startPlugin(key, item.options, item.callback);
-            }
-        });
-    }
 
     function configure(config_, emit_, callback) {
         config = config_;
@@ -81,9 +106,9 @@ function listen(socketPath, callback) {
         config.plugins && Object.keys(config.plugins).forEach(function (name) {
             left++;
 
-            startPlugin(name, config.plugins[name], function (err, plugin) {
+            startPlugin(config.plugins[name], function (err, plugin) {
                 if (err) return callback(err);
-                plugins[name] = plugin;
+                plugins.push(plugin);
                 check();
             });
         });
@@ -122,22 +147,30 @@ function listen(socketPath, callback) {
         return true;
     }
 
-    function startPlugin(name, options, callback) {
-        var manifest = require(path.resolve(options.base, "package.json"));
+    function startPlugin(options, callback) {
+        if (!options.packagePath) return callback(new Error("packagePath paremeter is required!"));
+
+        var packagePath = options.packagePath;
+        console.log("options", options);
+        if (packagePath[0] === ".") {
+            packagePath = path.resolve(options.base, packagePath);
+        }
+        console.log("packagePath", packagePath);
+        var manifest = require(path.join(packagePath, "package.json"));
         var pluginConfig = manifest.plugin || {};
+        var moduleName = pluginConfig.main || manifest.main;
+        var modulePath = require.resolve(path.resolve(options.base, moduleName));
 
         // Defer loading this plugin if it's dependencies aren't started yet
         if (!checkDependencies(pluginConfig.dependencies)) {
-            pendingPlugins[name] = {
+            pendingPlugins.push({
                 options: options,
                 manifest: manifest,
                 callback: callback
-            };
+            });
             return;
         }
 
-        var moduleName = pluginConfig.main || manifest.main;
-        var modulePath = require.resolve(path.resolve(options.base, moduleName));
 
         var startup = require(modulePath);
         var imports = {};

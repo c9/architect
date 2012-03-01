@@ -34,5 +34,5 @@ Tim's notes
 
 Rik's notes
 
-☐ Make service endpoints real functions.
+✓ Make service endpoints real functions.
   ( imports.http.raw(...) not imports.http("raw", ...) )

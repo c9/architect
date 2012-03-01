@@ -1,144 +1,100 @@
 var path = require('path');
-var net = require('net');
-var protocol = require('remoteagent-protocol');
+var fs = require('fs');
 
 exports.createApp = createApp;
 
-exports.startClient = function (input, output, functions) {
-    var remote = new protocol.Remote(input, output, 1);
-    // Hook up remote-functions and tell the server we're ready.
-    remote.emitRemote("init", functions);
-    return remote;
-};
+function createApp(configPath, callback) {
+    configPath = require.resolve(configPath);
+    var config = require(configPath);
 
-exports.connectToClient = function (input, output, callback) {
-    var remote = new protocol.Remote(input, output, 0);
+    // Default basePath to the dirname of the config file
+    var basePath = config.basePath = config.basePath || path.dirname(configPath);
 
-    // Wait for connect from far end and then call callback
-    remote.on('error', callback);
-    remote.once('init', function (functions) {
-        remote.removeListener('error', callback);
-        callback(null, remote, functions);
+    // Resolve plugin paths to the basePath
+    Object.keys(config.containers).forEach(function (containerName) {
+        var containerConfig = config.containers[containerName];
+        var pluginsConfigs = containerConfig.plugins;
+        pluginsConfigs && pluginsConfigs.forEach(function (pluginConfig, index) {
+            // packagePath is required on all plugins
+            if (!pluginConfig.hasOwnProperty("packagePath")) {
+                var err = new Error("'packagePath' required in `" +
+                    configPath + "` at " + containerName + "[" + index + "]");
+                return callback(err);
+            }
+            // Replace with fully resolved path
+            var packagePath = resolvePackage(basePath, pluginConfig.packagePath);
+            pluginConfig.packagePath = packagePath;
+        });
     });
-};
 
+    startContainers(config, callback);
+}
 
-function createApp(config, callback) {
-
+function startContainers(config, callback) {
     var containers = {};
-    var connections = {};
-    var base = config.base || process.cwd();
+    config.tmpdir = config.tmpdir || path.join(process.cwd(), ".architect");
 
-    function nameToSocketPath(name) {
-        return path.join(base, name + ".socket");
-    }
+    // Start all the containers in parallel, call callback when they are all done.
+    var left = 0;
+    Object.keys(config.containers).forEach(function (name) {
+        left++;
 
-    // A generic emitter for any container to emit globally
-    function emit(name, args) {
+        var containerConfig = config.containers[name];
+        containerConfig.name = name;
+        if (name !== 'master') {
+            // TODO: also make master listen if other containers will need to call it.
+            containerConfig.socketPath = path.resolve(config.tmpdir, name + ".socket");
+        }
+        containerConfig.tmpdir = config.tmpdir;
+
+        var createContainer = (name === "master") ?
+            require('./container').createContainer :
+            spawnContainer;
+
+        createContainer(containerConfig, function (err, container) {
+            if (err) throw err;
+            containers[name] = container;
+            if (!--left) {
+                callback(null, containers);
+            }
+        });
+    });
+
+    // A function that all containers have access to that enables broadcasting.
+    function broadcast(name, args) {
         Object.keys(containers).forEach(function (key) {
             containers[key].functions[name].apply(null, args);
         });
     }
+}
 
-    function connect(name, callback) {
-        if (connections.hasOwnProperty(name)) return callback(null, connections[name]);
-        var connection = connections[name] = {name:name};
-        var client = net.connect(nameToSocketPath(name), function () {
-            protocol.connectToClient(client, client, function (err, remote, functions) {
-                if (err) return callback(err);
-                connection.remote = remote;
-                connection.functions = functions;
-                callback(null, connection);
-            });
-        });
-    }
-
-    function spawnLocalContainer(name, callback) {
-        var connection = connections[name] = {name:name};
-        require('./container').listen(nameToSocketPath(name), function (err, functions) {
-            if (err) return callback(err);
-            connection.functions = functions;
-            callback(null, connection);
-        });
-    }
-
-    function spawnChildContainer(name, callback) {
-        var spawn = require('child_process').spawn;
-        var node = process.execPath;
-        var loader = require.resolve("./container.js");
-
-        var options = {
-            customFds: [-1, 1, 2],
-            env: { SOCKET_PATH: nameToSocketPath(name) },
-            stdinStream: createPipe(true)
-        };
-
-        var child = spawn(node, [loader], options);
-
-        // The child sends us a null byte when it's ready to be connected to over TCP.
-        child.stdin.resume();
-        child.stdin.once('data', function (chunk) {
-            connect(name, callback);
-        });
-
-        // TODO: Monitor child for life
-    }
-
-    var left = 1;
-    Object.keys(config.containers).forEach(function (name) {
-        left++;
-        var containerConfig = config.containers[name];
-        var spawnContainer = name === "master" ? spawnLocalContainer : spawnChildContainer;
-        containerConfig.name = name;
-
-        spawnContainer(name, function (err, container) {
-            if (err) throw err;
-            containers[name] = container;
-
-            // TODO: find a way to share functions between multiple clients so that
-            // "check" can be used directly here and not a bound copy. The function
-            // tagging used by the protocol assumes that a function is unique to a
-            // single channel.
-            container.functions.configure(containerConfig, emit.bind(null), check.bind(null));
-        });
+// Create a new container in a child process
+function spawnContainer(config, callback) {
+    var child = require('slave').spawn(require.resolve("./container.js"));
+    child.on('error', callback);
+    child.send(config);
+    child.once('message', function (message) {
+        child.removeListener('error', callback);
+        callback(null, message);
     });
-    check();
 
-    function check() {
-        if (!--left) {
-            callback(null, containers);
+    // TODO: Monitor child for life
+}
+
+// Node style package resolving so that plugins' package.json can be found relative to the config file
+// It's not the full node require system algorithm, but it's the 99% case
+function resolvePackage(base, packagePath) {
+    if (packagePath[0] === "." || packagePath[0] === "/") {
+        var newPath = path.resolve(base, packagePath, "package.json");
+        if (path.existsSync(newPath)) return newPath;
+    }
+    else {
+        while (base) {
+            var newPath = path.resolve(base, "node_modules", packagePath, "package.json");
+            if (path.existsSync(newPath)) return newPath;
+            base = base.substr(0, base.lastIndexOf("/"));
         }
     }
-
+    throw new Error("Can't find '" + packagePach + "' relative to '" + base + '"');
 }
 
-// ************************************************************************** //
-// taken from the node.js sources lib/child_process.js                                                //
-// ************************************************************************** //
-
-var Pipe;
-function createPipe(ipc) {
-        // Lazy load
-        if (!Pipe) {
-                Pipe = process.binding('pipe_wrap').Pipe;
-        }
-
-        return new Pipe(ipc);
-}
-
-var net;
-function createSocket(pipe, readable) {
-    if (!net) net = require('net');
-        var s = new net.Socket({ handle: pipe });
-
-        if (readable) {
-                s.writable = false;
-                s.readable = true;
-                s.resume();
-        } else {
-                s.writable = true;
-                s.readable = false;
-        }
-
-        return s;
-}
