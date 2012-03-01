@@ -7,25 +7,15 @@ module.exports = {
     containers: {
         master: {
             title: "architect-demo-simple",
-            plugins: {
-                "http": {
-                    base: path.join(base, "./plugins/http"),
-                    port: process.env.PORT || (process.getuid() ? 8080 : 80)
-                },
-                "static": {
-                    base: path.join(base, "./plugins/static-file"),
-                    root: staticDir
-                },
-                "calculator": {
-                    base: path.join(base, "./plugins/calculator")
-                },
-                "db": {
-                    base: path.join(base, "./plugins/db")
-                },
-                "auth": {
-                    base: path.join(base, "./plugins/auth")
-                }
-            }
+            plugins: [
+                { packagePath: "architect-http",
+                  port: process.env.PORT || (process.getuid() ? 8080 : 80) },
+                { packagePath: "architect-http-static",
+                  root: staticDir },
+                { packagepath: "../plugins/calculator") },
+                { packagePath: "../plugins/db" },
+                { packagePath: "../plugins/auth" }
+            ]
         }
     }
 };

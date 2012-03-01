@@ -6,7 +6,7 @@ var staticStat = fs.statSync(staticDir);
 
 module.exports = {
     name: "Architect Demo",
-    base: base,
+    tmpdir: path.join(base, ".architect"),
     containers: {
         master: {
             title: "architect-demo"
@@ -16,31 +16,23 @@ module.exports = {
             // This process is run as whoever owns the www folder
             uid: staticStat.uid,
             gid: staticStat.gid,
-            plugins: {
-                "http": {
-                    base: "./plugins/http",
-                    port: process.env.PORT || (process.getuid() ? 8080 : 80)
-                },
-                "static": {
-                    base: "./plugins/static-file",
-                    root: staticDir
-                },
-                "calculator": {
-                    base: "./plugins/calculator"
-                }
-            }
+            plugins: [
+                { packagePath: "architect-http",
+                  port: process.env.PORT || (process.getuid() ? 8080 : 80) },
+                { packagePath: "architect-http-static",
+                  root: staticDir },
+                { packagePath: "../plugins/calculator" }
+            ]
         },
         db: {
             title: "architect-database-worker",
             uid: "nobody",
-            plugins: {
-                "db": {
-                    base: "./plugins/db"
-                },
-                "auth": {
-                    base: "./plugins/auth"
-                }
-            }
+            plugins: [
+                { packagePath: "../plugins/db",
+                  aliasProvides: { db: "memorydb" } },
+                { packagePath: "../plugins/auth",
+                  aliasConsumes: { db: "memorydb" } }
+            ]
         }
     }
 };

@@ -2,8 +2,9 @@
     "name": "calculator",
     "version": "0.0.1",
     "main": "calculator.js",
+    "private": true,
 
     "plugin": {
-        "dependencies": ["http", "auth"]
+        "consumes": ["http", "auth"]
     }
 }

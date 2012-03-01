@@ -1,9 +1,0 @@
-{
-    "name": "static-file",
-    "version": "0.0.1",
-    "main": "static-file.js",
-
-    "plugin": {
-        "dependencies": ["http"]
-    }
-}

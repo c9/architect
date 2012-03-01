@@ -2,9 +2,10 @@
     "name": "auth",
     "version": "0.0.1",
     "main": "auth.js",
+    "private": true,
 
     "plugin": {
-        "dependencies": ["database"],
+        "consumes": ["database"],
         "provides": ["auth"]
     }
 }

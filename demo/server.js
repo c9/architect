@@ -1,5 +1,5 @@
 var path = require('path');
-var architect = require(path.existsSync("../architect.js") ? '../architect.js' : "architect");
+var architect = require("architect");
 
 var configName = process.argv[2] || "default";
 var config = require(path.resolve("./configs/", configName));
