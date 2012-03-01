@@ -3,31 +3,29 @@ var base = path.resolve(__dirname , "..");
 var staticDir = path.join(base, "www");
 
 module.exports = {
-  name: "Architect Demo Simple",
-  base: base,
-  containers: {
-    master: {
-      title: "architect-demo-simple",
-      plugins: {
-        http: { module: "./plugins/http.js",
-          provides: ["http"],
-          port: process.env.PORT || (process.getuid() ? 8080 : 80),
-        },
-        static: { module: "./plugins/static-file.js",
-          dependencies: ["http"],
-          root: staticDir,
-        },
-        calculator: { module: "./plugins/calculator.js",
-          dependencies: ["http", "auth"],
-        },
-        db: { module: "./plugins/db.js",
-          provides: ["database"],
-        },
-        auth: { module: "./plugins/auth.js",
-          dependencies: ["database"],
-          provides: ["auth"],
-        },
-      }
+    name: "Architect Demo Simple",
+    containers: {
+        master: {
+            title: "architect-demo-simple",
+            plugins: {
+                "http": {
+                    base: path.join(base, "./plugins/http"),
+                    port: process.env.PORT || (process.getuid() ? 8080 : 80)
+                },
+                "static": {
+                    base: path.join(base, "./plugins/static-file"),
+                    root: staticDir
+                },
+                "calculator": {
+                    base: path.join(base, "./plugins/calculator")
+                },
+                "db": {
+                    base: path.join(base, "./plugins/db")
+                },
+                "auth": {
+                    base: path.join(base, "./plugins/auth")
+                }
+            }
+        }
     }
-  },  
-};  
+};

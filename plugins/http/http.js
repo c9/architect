@@ -1,4 +1,4 @@
-// This plugin gives the app a stack/connect like http server.  It had service
+// This plugin gives the app a stack/connect like http server.  It has service
 // functions for adding routes so that other plugins can register their own http
 // routes. also, this can be the same plugin that does websocket I/O, or we can
 // break that out into it's own plugin and simply provide a raw hook here.
