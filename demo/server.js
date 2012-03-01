@@ -2,13 +2,13 @@ var path = require('path');
 var architect = require("architect");
 
 var configName = process.argv[2] || "default";
-var config = require(path.resolve("./configs/", configName));
+var configPath = path.resolve("./configs/", configName);
 
-architect.createApp(config, function (err, app) {
+architect.createApp(configPath, function (err, app) {
     if (err) {
-        console.error("While starting the '%s' configuration:", config.name);
+        console.error("While starting the '%s':", configPath);
         throw err;
     }
-    console.log("The '%s' app is now running!", config.name);
+    console.log("Started '%s'!", configPath);
     console.log(app);
 });

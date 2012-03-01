@@ -12,7 +12,7 @@ module.exports = {
                   port: process.env.PORT || (process.getuid() ? 8080 : 80) },
                 { packagePath: "architect-http-static",
                   root: staticDir },
-                { packagepath: "../plugins/calculator") },
+                { packagePath: "../plugins/calculator" },
                 { packagePath: "../plugins/db" },
                 { packagePath: "../plugins/auth" }
             ]
