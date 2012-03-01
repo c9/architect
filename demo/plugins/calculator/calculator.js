@@ -13,7 +13,7 @@ module.exports = function setup(options, imports, register) {
     var handler = stack.compose(
         basicAuth(function (req, username, password, callback) {
             // Defer to the auth plugin for actual authentation
-            auth("authenticate", username, password, function (user) {
+            auth.authenticate(username, password, function (user) {
                 if (!user) return callback();
                 // Also check if the operation is allowed for this user
                 if (user.allowed.indexOf(req.params.operation) < 0) return callback();
@@ -28,7 +28,7 @@ module.exports = function setup(options, imports, register) {
         }
     )
 
-    http("get", "/:operation/:first/:second", handler, register);
+    http.get("/:operation/:first/:second", handler, register);
 
     // Based loosly on basicAuth from Connect
     // Checker takes username and password and returns a user if valid

@@ -31,3 +31,8 @@ Tim's notes
   ☐ Make anonymous callbacks one-shot by default.
 
 --------------------------------------------------------------------------------
+
+Rik's notes
+
+☐ Make service endpoints real functions.
+  ( imports.http.raw(...) not imports.http("raw", ...) )
