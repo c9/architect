@@ -98,5 +98,3 @@ base (which is cwd if not given).
 Since architect doesn't care if you use npm or not, it's easy to embed small
 one-off plugins mixed with npm modules.  With the custom module path property,
 they don't even have to be in the node_modules folder.
-
-I
