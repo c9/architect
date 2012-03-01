@@ -98,3 +98,12 @@ base (which is cwd if not given).
 Since architect doesn't care if you use npm or not, it's easy to embed small
 one-off plugins mixed with npm modules.  With the custom module path property,
 they don't even have to be in the node_modules folder.
+
+## TODOs
+
+ - Clean up the code, it's quite sloppy, especially variable naming.
+ - Fix the callback leaks.  I think named functions and defaulting functions
+   to gc after first use will go a long ways to keeping things tidy.
+ - Integrate lifecycle and other concepts from original architect prototype.
+ - Smooth out rough places in API.  The core concepts are there, but it's not
+   pretty.
