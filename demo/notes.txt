@@ -20,6 +20,7 @@ Fabian's notes
 ☐ Add event when all plugins are loaded.
 ☐ Only listen on socket if there are other containers that will need to connect
   inbound.
+☐ Add cycle detection in plugins.
 
 --------------------------------------------------------------------------------
 
