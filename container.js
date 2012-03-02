@@ -78,6 +78,17 @@ function createContainer(config, callback) {
     function loadPlugins() {
         if (!config.plugins) return done();
 
+        // the hub is a buildin service
+        services["hub"] = {
+            on: hub.on.bind(hub)
+        };
+        serviceMap["hub"] = {
+            container: container.name,
+            socket: container.socketPath,
+            name: "hub",
+            functions: Object.keys(services["hub"])
+        };
+
         var left = 1;
         config.plugins.forEach(function (options, index) {
             left++;
