@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 var path = require('path');
 var architect = require("architect");
 
