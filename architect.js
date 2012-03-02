@@ -35,7 +35,7 @@ function startContainers(config, callback) {
     config.tmpdir = config.tmpdir || path.join(process.cwd(), ".architect");
 
     // Start all the containers in parallel, call callback when they are all done.
-    var left = 0;
+    var left = 1;
     Object.keys(config.containers).forEach(function (name) {
         left++;
 
@@ -55,16 +55,36 @@ function startContainers(config, callback) {
         createContainer(containerConfig, function (err, container) {
             if (err) throw err;
             containers[name] = container;
-            if (!--left) {
-                callback(null, containers);
-            }
+            check();
         });
     });
+    check();
+
+    function check() {
+        if (--left) return;
+
+        // Once all the slave processes are created and connected, start creating the plugins.
+        // We need the processes connected so that they can receive service start events.
+        Object.keys(containers).forEach(function (name) {
+            var container = containers[name];
+            container.loadPlugins();
+        });
+        // We don't need to wait on the plugins to initialize, so let's return.
+        callback(null, containers);
+    }
 
     // A function that all containers have access to that enables broadcasting.
-    function broadcast(name, args) {
+    // The following kinds messages are broadcasts to all containers:
+    //  - serviceReady { container, socket, name, functions }
+    //  - servicesDone {} - all services are initialized
+    //  - serviceDied {serviceName}
+    //  - containerReady { container }
+    //  - containerDied {containerName}
+    //  - containersDone {} - all containers are initialized
+    function broadcast(name, message) {
+        console.error("BROADCAST: " + name, message);
         Object.keys(containers).forEach(function (key) {
-            containers[key].functions[name].apply(null, args);
+            containers[key].handleBroadcast(name, message);
         });
     }
 }
