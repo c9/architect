@@ -45,6 +45,7 @@ function startContainers(config, callback) {
             // TODO: also make master listen if other containers will need to call it.
             containerConfig.socketPath = path.resolve(config.tmpdir, name + ".socket");
         }
+        containerConfig.broadcast = broadcast;
         containerConfig.tmpdir = config.tmpdir;
 
         var createContainer = (name === "master") ?

@@ -16,34 +16,64 @@ function createContainer(config, callback) {
     var services = {}; // local services provided by this container
     var plugins = []; // plugins that live in this container
     var pendingPlugins = []; // plugins that are waiting on their dependencies
+    var connections = {};
 
-
-    var functions = {
+    var container = {
+        pid: process.pid,
+        name: config.name,
         onBroadcast: onBroadcast,
         onRequest: onRequest,
-        listen: listen,
-        connect: connect
+        connect: connect,
+        services: services
     }
 
-    config.pid = process.pid;
-    if (!config.socketPath) {
-        config.functions = functions;
+    if (config.socketPath) {
+        container.socketPath = config.socketPath;
+        listen(container, reportError);
     }
+    loadPlugins(reportError);
 
-    loadPlugins();
-    return callback(null, config);
+    return callback(null, container);
+
+    function reportError(err) {
+        if (err) throw err;
+        // TODO: send some sort of event instead.
+    }
 
     function onBroadcast(name, args) {
-
+        console.error("TODO: Implement onBroadcast");
     }
 
     function onRequest(name, args) {
-
+        console.error("TODO: Implement onRequest");
     }
 
-    function loadPlugins() {
-
+    function connect(socketPath, callback) {
+        if (connections[socketPath]) return callback(null, connections[socketPath]);
+        // TODO: Implement request batch for when multiple requests for the
+        // same connection happen at once.
+        var socket = net.connect(socketPath, function () {
+            protocol.connectToClient(socket, socket, function (err, remote, container) {
+                if (!err) {
+                    container.remote = container;
+                    connections[socketPath] = container;
+                }
+                callback(err, container);
+            });
+        });
     }
+
+    function loadPlugins(callback) {
+        console.error("TODO: Implement loadPlugins");
+    }
+
+
+    function listen(callback) {
+        net.createServer(function (socket) {
+            protocol.startClient(socket, socket, container);
+        }).listen(container.socketPath, callback);
+    }
+
 
     ////////////////////////////////////////////////////////////////////////////
 
@@ -217,21 +247,5 @@ function listen(socketPath, callback) {
             remoteContainer.functions.handleRequest(serviceName, methodName, args);
         });
     }
-
-    // Start accepting new connections on a local unix TCP socket
-    var functions = {
-        mapService: mapService,
-        configure: configure,
-        handleRequest: handleRequest
-    };
-
-    var server = net.createServer(function (socket) {
-        protocol.startClient(socket, socket, functions);
-    });
-
-    server.listen(socketPath, function (err) {
-        if (err) return callback(err);
-        callback(null, functions);
-    });
 
 }
