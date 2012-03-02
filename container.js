@@ -136,12 +136,6 @@ function createContainer(config, callback) {
     function startPlugin(options, callback) {
         var packagePath = options.packagePath;
 
-        // Look up the provides and consumes in the package.json
-        var pluginConfig = require(packagePath).plugin;
-        for (var key in pluginConfig) {
-            if (!options.hasOwnProperty(key)) options[key] = pluginConfig[key];
-        }
-
         // Defer the plugin if it's required services aren't started yet
         if (!checkDependencies(options.consumes)) {
             pendingPlugins.push({options:options,callback:callback});

@@ -25,10 +25,61 @@ function createApp(configPath, callback) {
             // Replace with fully resolved path
             var packagePath = resolvePackage(basePath, pluginConfig.packagePath);
             pluginConfig.packagePath = packagePath;
+
+            // Look up the provides and consumes in the package.json and merge.
+            var pluginConfigBase = require(packagePath).plugin;
+            if (!pluginConfigBase) {
+                var err = new Error("Missing 'plugin' section in " + packagePath);
+                return callback(err);
+            }
+            for (var key in pluginConfigBase) {
+                if (!pluginConfig.hasOwnProperty(key)) {
+                    pluginConfig[key] = pluginConfigBase[key];
+                }
+            }
         });
     });
-
     startContainers(config, callback);
+}
+
+function calcProvides(container) {
+    console.log("P", container);
+    var provides = {};
+    var plugins = container.plugins;
+    plugins && plugins.forEach(function (plugin) {
+        if (!plugin.provides) return;
+        plugin.provides.forEach(function (service) {
+            provides[service] = true;
+        });
+    });
+    return provides;
+}
+
+function calcDepends(container, provides) {
+    if (!container.plugins) return false;
+    console.log(container.name, provides);
+    var i = container.plugins.length;
+    while (i--) {
+        var consumes = container.plugins[i].consumes;
+        if (!consumes) continue;
+        var j = consumes.length;
+        while (j--) {
+            if (provides[consumes[j]]) return true
+        }
+    }
+    return false;
+}
+
+function needsServe(containers, name) {
+    console.log(containers, name);
+    var provides = calcProvides(containers[name]);
+    // First calculate what all services this container provides.
+    for (var key in containers) {
+        if (!containers.hasOwnProperty(key)) continue;
+        if (key === name) continue;
+        if (calcDepends(containers[key], provides)) return true;
+    }
+    return false;
 }
 
 function startContainers(config, callback) {
@@ -43,8 +94,7 @@ function startContainers(config, callback) {
 
         var containerConfig = config.containers[name];
         containerConfig.name = name;
-        if (name !== 'master') {
-            // TODO: also make master listen if other containers will need to call it.
+        if (needsServe(config.containers, name)) {
             containerConfig.socketPath = path.resolve(config.tmpdir, name + ".socket");
         }
         containerConfig.broadcast = broadcast;
