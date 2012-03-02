@@ -43,7 +43,6 @@ function createApp(configPath, callback) {
 }
 
 function calcProvides(container) {
-    console.log("P", container);
     var provides = {};
     var plugins = container.plugins;
     plugins && plugins.forEach(function (plugin) {
@@ -57,7 +56,6 @@ function calcProvides(container) {
 
 function calcDepends(container, provides) {
     if (!container.plugins) return false;
-    console.log(container.name, provides);
     var i = container.plugins.length;
     while (i--) {
         var consumes = container.plugins[i].consumes;
@@ -71,7 +69,6 @@ function calcDepends(container, provides) {
 }
 
 function needsServe(containers, name) {
-    console.log(containers, name);
     var provides = calcProvides(containers[name]);
     // First calculate what all services this container provides.
     for (var key in containers) {
@@ -141,8 +138,10 @@ function startContainers(config, callback) {
     function broadcast(name, message) {
         console.error("BROADCAST: " + name, message);
         hub.emit(name, message);
-        Object.keys(containers).forEach(function (key) {
-            containers[key].handleBroadcast(name, message);
+        process.nextTick(function () {
+            Object.keys(containers).forEach(function (key) {
+                containers[key].handleBroadcast(name, message);
+            });
         });
     }
 }
