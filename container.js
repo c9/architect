@@ -1,4 +1,5 @@
 var net = require('net');
+var fs = require('fs');
 var path = require('path');
 var protocol = require('remoteagent-protocol');
 var EventEmitter = require('events').EventEmitter;
@@ -38,7 +39,10 @@ function createContainer(config, callback) {
         container.socketPath = config.socketPath;
         net.createServer(function (socket) {
             protocol.startClient(socket, socket, container);
-        }).listen(container.socketPath, callback);
+        }).listen(container.socketPath, function (err) {
+            if (err) return callback(err);
+            fs.chown(container.socketPath, config.uid || process.getuid(), config.gid || process.getgid(), callback);
+        });
     }
 
     hub.on('serviceReady', function (message) {

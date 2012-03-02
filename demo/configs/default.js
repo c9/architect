@@ -9,7 +9,7 @@ module.exports = {
     tmpdir: path.join(base, ".architect"),
     containers: {
         master: {
-            title: "architect-demo"
+            title: "architect-demo",
         },
         www: {
             title: "architect-http-worker",
@@ -26,7 +26,8 @@ module.exports = {
         },
         db: {
             title: "architect-database-worker",
-            uid: "nobody",
+            uid: staticStat.uid,
+            gid: staticStat.gid,
             plugins: [
                 { packagePath: "../plugins/db",
                   aliasProvides: { db: "memorydb" } },
