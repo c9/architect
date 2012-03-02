@@ -109,6 +109,22 @@ function createContainer(config, callback) {
         }
 
         function done() {
+            if (config.gid) {
+                try {
+                    process.setgid(config.gid);
+                } catch (err) {
+                    if (err.code === "EPERM") console.error("WARNING: '%s' cannot set gid to %s", container.name, JSON.stringify(config.gid));
+                    else throw err;
+                }
+            }
+            if (config.uid) {
+                try {
+                    process.setuid(config.uid);
+                } catch (err) {
+                    if (err.code === "EPERM") console.error("WARNING: '%s' cannot set uid to %s", container.name, JSON.stringify(config.uid));
+                    else throw err;
+                }
+            }
             broadcast("containerReady", { container: container.name });
         }
     }

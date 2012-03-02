@@ -1,5 +1,6 @@
 var path = require('path');
 var fs = require('fs');
+var EventEmitter = require('events').EventEmitter;
 
 exports.createApp = createApp;
 
@@ -31,13 +32,14 @@ function createApp(configPath, callback) {
 }
 
 function startContainers(config, callback) {
+    var hub = new EventEmitter();
+
     var containers = {};
     config.tmpdir = config.tmpdir || path.join(process.cwd(), ".architect");
 
     // Start all the containers in parallel, call callback when they are all done.
-    var left = 1;
+    var readyLeft = startLeft = Object.keys(config.containers).length;
     Object.keys(config.containers).forEach(function (name) {
-        left++;
 
         var containerConfig = config.containers[name];
         containerConfig.name = name;
@@ -55,13 +57,14 @@ function startContainers(config, callback) {
         createContainer(containerConfig, function (err, container) {
             if (err) throw err;
             containers[name] = container;
-            check();
+            checkStart();
         });
     });
-    check();
 
-    function check() {
-        if (--left) return;
+    hub.on('containerReady', checkReady);
+
+    function checkStart() {
+        if (--startLeft) return;
 
         // Once all the slave processes are created and connected, start creating the plugins.
         // We need the processes connected so that they can receive service start events.
@@ -69,7 +72,11 @@ function startContainers(config, callback) {
             var container = containers[name];
             container.loadPlugins();
         });
-        // We don't need to wait on the plugins to initialize, so let's return.
+    }
+
+    function checkReady() {
+        if (--readyLeft) return;
+        broadcast("containersDone", {});
         callback(null, containers);
     }
 
@@ -83,6 +90,7 @@ function startContainers(config, callback) {
     //  - containersDone {} - all containers are initialized
     function broadcast(name, message) {
         console.error("BROADCAST: " + name, message);
+        hub.emit(name, message);
         Object.keys(containers).forEach(function (key) {
             containers[key].handleBroadcast(name, message);
         });
