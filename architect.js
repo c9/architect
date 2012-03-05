@@ -15,6 +15,13 @@ function createApp(configPath, callback) {
         var containerConfig = config.containers[containerName];
         var pluginsConfigs = containerConfig.plugins;
         pluginsConfigs && pluginsConfigs.forEach(function (pluginConfig, index) {
+
+            // if plugin is a string it is interpreted as the package path
+            if (typeof pluginConfig === "string") {
+                pluginsConfigs[index] = pluginConfig = {
+                    packagePath: pluginConfig
+                };
+            }
             // packagePath is required on all plugins
             if (!pluginConfig.hasOwnProperty("packagePath")) {
                 var err = new Error("'packagePath' required in `" +
