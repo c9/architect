@@ -167,8 +167,8 @@ function createContainer(config, callback) {
                 serviceDescription.functions.forEach(function (functionName) {
                     stub[functionName] = function stubFunction() {
                         var args = Array.prototype.slice.call(arguments);
-                        makeRequest(socketPath, serviceName, functionName, Array.prototype.slice.call(arguments));
-                    }
+                        makeRequest(socketPath, serviceName, functionName, args);
+                    };
                 });
             }
             imports[serviceName] = stub;

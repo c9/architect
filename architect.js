@@ -92,7 +92,8 @@ function startContainers(config, callback) {
     config.tmpdir = config.tmpdir || path.join(process.cwd(), ".architect");
 
     // Start all the containers in parallel, call callback when they are all done.
-    var readyLeft = startLeft = Object.keys(config.containers).length;
+    var readyLeft, startLeft;
+    readyLeft = startLeft = Object.keys(config.containers).length;
     Object.keys(config.containers).forEach(function (name) {
 
         var containerConfig = config.containers[name];
