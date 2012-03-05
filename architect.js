@@ -172,6 +172,6 @@ function resolvePackage(base, packagePath) {
             base = base.substr(0, base.lastIndexOf("/"));
         }
     }
-    throw new Error("Can't find '" + packagePach + "' relative to '" + base + '"');
+    throw new Error("Can't find '" + packagePath + "' relative to '" + base + '"');
 }
 
