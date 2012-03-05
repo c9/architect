@@ -22,6 +22,7 @@ function createApp(configPath, callback) {
                     packagePath: pluginConfig
                 };
             }
+
             // packagePath is required on all plugins
             if (!pluginConfig.hasOwnProperty("packagePath")) {
                 var err = new Error("'packagePath' required in `" +
@@ -43,16 +44,75 @@ function createApp(configPath, callback) {
                     pluginConfig[key] = pluginConfigBase[key];
                 }
             }
+
+            // provide defaults
+            pluginConfig.provides = pluginConfig.provides || [];
+            pluginConfig.consumes = pluginConfig.consumes || [];
         });
     });
+
+    checkCycles(config);
     startContainers(config, callback);
+}
+
+// pre flight dependency check
+function checkCycles(config) {
+    var plugins = [];
+    var containers = config.containers;
+    Object.keys(containers).forEach(function(containerName) {
+        var pluginConfigs = containers[containerName].plugins || [];
+        pluginConfigs.forEach(function(pluginConfig) {
+            plugins.push({
+                packagePath: pluginConfig.packagePath,
+                provides: pluginConfig.provides.concat(),
+                consumes: pluginConfig.consumes.concat()
+            });
+        });
+    });
+
+    var resolved = {
+        hub: true
+    };
+    var changed = true;
+
+    while(plugins.length && changed) {
+        changed = false;
+
+        plugins.concat().forEach(function(plugin) {
+            var consumes = plugin.consumes.concat();
+
+            var resolvedAll = true;
+            for (var i=0; i<consumes.length; i++) {
+                var service = consumes[i];
+                if (!resolved[service]) {
+                    resolvedAll = false;
+                } else {
+                    plugin.consumes.splice(plugin.consumes.indexOf(service), 1);
+                }
+            }
+
+            if (!resolvedAll)
+                return;
+
+            plugins.splice(plugins.indexOf(plugin), 1);
+            plugin.provides.forEach(function(service) {
+                resolved[service] = true;
+            });
+            changed = true;
+        });
+    }
+
+    if (plugins.length) {
+        console.error("Could not resolve dependencies of these plugins:", plugins);
+        console.error("Resovled services:", resolved);
+        throw new Error("Could not resolve dependencies");
+    }
 }
 
 function calcProvides(container) {
     var provides = {};
     var plugins = container.plugins;
     plugins && plugins.forEach(function (plugin) {
-        if (!plugin.provides) return;
         plugin.provides.forEach(function (service) {
             provides[service] = true;
         });
@@ -65,10 +125,9 @@ function calcDepends(container, provides) {
     var i = container.plugins.length;
     while (i--) {
         var consumes = container.plugins[i].consumes;
-        if (!consumes) continue;
         var j = consumes.length;
         while (j--) {
-            if (provides[consumes[j]]) return true
+            if (provides[consumes[j]]) return true;
         }
     }
     return false;
