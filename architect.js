@@ -4,8 +4,18 @@ var EventEmitter = require('events').EventEmitter;
 exports.createApp = createApp;
 
 function createApp(configPath, callback) {
-    configPath = require.resolve(configPath);
-    var config = require(configPath);
+    var config = {};
+    if (typeof configPath === "object") {
+        config = configPath;
+        configPath = "<provided config object>";
+        if (!config.basePath) {
+            var err = new Error("'basePath' required in config object");
+            return callback(err);
+        }
+    } else {
+        configPath = require.resolve(configPath);
+        config = require(configPath);
+    }
 
     // Default basePath to the dirname of the config file
     var basePath = config.basePath = config.basePath || path.dirname(configPath);
