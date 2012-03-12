@@ -175,7 +175,7 @@ function createContainer(config, callback) {
         });
 
         // Load the plugin
-        var startup = require(path.dirname(packagePath));
+        var startup = options.startup || require(path.dirname(packagePath));
         startup(options, imports, callback);
     }
 

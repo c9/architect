@@ -39,16 +39,30 @@ function createApp(configPath, callback) {
                     configPath + "` at " + containerName + "[" + index + "]");
                 return callback(err);
             }
-            // Replace with fully resolved path
-            var packagePath = resolvePackage(basePath, pluginConfig.packagePath);
-            pluginConfig.packagePath = packagePath;
 
-            // Look up the provides and consumes in the package.json and merge.
-            var pluginConfigBase = require(packagePath).plugin;
+            var pluginConfigBase;
+
+            // the architect app can inject plugins into the master
+            if (pluginConfig.plugin) {
+                if (containerName !== "master")
+                    return new Error("Plugins can only be injected into the master container");
+
+                var pluginConfigBase = pluginConfig.plugin;
+            }
+            else {
+                // Replace with fully resolved path
+                var packagePath = resolvePackage(basePath, pluginConfig.packagePath);
+                pluginConfig.packagePath = packagePath;
+
+                // Look up the provides and consumes in the package.json and merge.
+                pluginConfigBase = require(packagePath).plugin;
+            }
+
             if (!pluginConfigBase) {
                 var err = new Error("Missing 'plugin' section in " + packagePath);
                 return callback(err);
             }
+
             for (var key in pluginConfigBase) {
                 if (!pluginConfig.hasOwnProperty(key)) {
                     pluginConfig[key] = pluginConfigBase[key];
