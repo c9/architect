@@ -1,7 +1,7 @@
 {
     "name": "architect",
     "description": "A Simple yet powerful plugin system for large-scale node applications",
-    "version": "0.0.1",
+    "version": "0.0.2",
     
     "author": "ajax.org B.V. <info@ajax.org>",
     "contributors": [
@@ -18,8 +18,7 @@
     },
     
     "dependencies": {
-        "remoteagent-protocol": "~0.1.0",
-        "slave": "~0.0.0"
+        "remoteagent-protocol": "~0.1.0"
     },
     "devDependencies": {},
     "optionalDependencies": {},
