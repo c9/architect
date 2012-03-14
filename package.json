@@ -15,10 +15,10 @@
     "repository" : {
         "type" : "git",
         "url" : "http://github.com/c9/architect.git"
-    },   
+    },
     
     "dependencies": {
-        "remoteagent-protocol": "~0.0.2",
+        "remoteagent-protocol": "~0.1.0",
         "slave": "~0.0.0"
     },
     "devDependencies": {},
