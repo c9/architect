@@ -16,20 +16,20 @@ Fabian's notes
 
 ☐ Ability to handle case when process dies.
   ☐ Publish death event when service goes down.
-☐ Add event system exposed to plugins.
-☐ Add event when all plugins are loaded.
-☐ Only listen on socket if there are other containers that will need to connect
+✓ Add event system exposed to plugins.
+✓ Add event when all plugins are loaded.
+✓ Only listen on socket if there are other containers that will need to connect
   inbound.
-☐ Add cycle detection in plugins.
+✓ Add cycle detection in plugins.
 
 --------------------------------------------------------------------------------
 
 Tim's notes
 
 ☐ Make reconnects possible when a process dies, make connections more stateless.
-☐ Change protocol to not leak functions.
-  ☐ Add support for named functions .
-  ☐ Make anonymous callbacks one-shot by default.
+✓ Change protocol to not leak functions.
+  ✓ Add support for named functions .
+  ✓ Make anonymous callbacks one-shot by default.
 
 --------------------------------------------------------------------------------
 
