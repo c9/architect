@@ -3,7 +3,11 @@ var EventEmitter = require('events').EventEmitter;
 
 exports.createApp = createApp;
 
-function createApp(configPath, callback) {
+function createApp(configPath, options, callback) {
+    if (typeof callback === "undefined") {
+        callback = options;
+        options = {};
+    }
     var config = {};
     if (typeof configPath === "object") {
         config = configPath;
@@ -15,6 +19,12 @@ function createApp(configPath, callback) {
     } else {
         configPath = require.resolve(configPath);
         config = require(configPath);
+    }
+    // Overwrite console object from config if set in createApp options
+    if (typeof options.console !== "undefined") {
+        config.console = options.console;
+    } else {
+        config.console = console;
     }
 
     // Default basePath to the dirname of the config file
@@ -127,8 +137,10 @@ function checkCycles(config) {
     }
 
     if (plugins.length) {
-        console.error("Could not resolve dependencies of these plugins:", plugins);
-        console.error("Resovled services:", resolved);
+        if (config.console && config.console.error) {
+            console.error("Could not resolve dependencies of these plugins:", plugins);
+            console.error("Resovled services:", resolved);
+        }
         throw new Error("Could not resolve dependencies");
     }
 }
@@ -226,7 +238,9 @@ function startContainers(config, callback) {
     //  - containerDied {containerName}
     //  - containersDone {} - all containers are initialized
     function broadcast(name, message) {
-        console.error("BROADCAST: " + name, message);
+        if (config.console && config.console.info) {
+            console.info("BROADCAST: " + name, message);
+        }
         hub.emit(name, message);
         process.nextTick(function () {
             Object.keys(containers).forEach(function (key) {
