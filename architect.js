@@ -11,7 +11,8 @@ function createApp(config, callback) {
 
 // Gather and preflight the config.
 exports.processConfig = processConfig;
-function processConfig(configPath) {
+function processConfig(configPath, options) {
+    options = options || {};
     var config = {};
 
     // Allow passing in either config path or config object
@@ -26,6 +27,14 @@ function processConfig(configPath) {
         configPath = require.resolve(configPath);
         config = require(configPath);
     }
+
+    // Overwrite console object from config if set in createApp options
+    if (typeof options.console !== "undefined") {
+        config.console = options.console;
+    } else {
+        config.console = console;
+    }
+
     // Default basePath to the dirname of the config file
     var basePath = config.basePath = config.basePath || path.dirname(configPath);
 
@@ -247,7 +256,9 @@ function startContainers(config, callback) {
     //  - containerDied {containerName}
     //  - containersDone {} - all containers are initialized
     function broadcast(name, message) {
-        console.error("BROADCAST: " + name, message);
+        if (config.console && config.console.info) {
+            console.info("BROADCAST: " + name, message);
+        }
         hub.emit(name, message);
         process.nextTick(function () {
             Object.keys(containers).forEach(function (key) {

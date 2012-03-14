@@ -37,7 +37,6 @@ function createContainer(containerName, broadcast, callback) {
     function initialize(config) {
         broadcast("containerStarting", containerName);
         containerConfig = config;
-        // console.log(containerName, config);
 
         if (config.title) {
             process.title = config.title;
