@@ -1,12 +1,12 @@
 var assert = require('assert');
-var Agent = require('remoteagent-protocol').Agent;
+var Agent = require('architect-agent').Agent;
 var createContainer = require('./container').createContainer;
 
 var queue = [];
 var name = process.env.ARCHITECT_CONTAINER_NAME;
 assert(name);
 
-var socketTransport = require('remoteagent-protocol/lib/socket-transport');
+var socketTransport = require('architect-socket-transport');
 var functions = {};
 var agent = new Agent({
 	onBroadcast: function () {

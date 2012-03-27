@@ -1,8 +1,8 @@
 var EventEmitter = require('events').EventEmitter;
 var net = require('net');
 var dirname = require('path').dirname;
-var Agent = require('remoteagent-protocol').Agent;
-var socketTransport = require('remoteagent-protocol/lib/socket-transport');
+var Agent = require('architect-agent').Agent;
+var socketTransport = require('architect-socket-transport');
 
 exports.createContainer = createContainer;
 function createContainer(containerName, broadcast, callback) {

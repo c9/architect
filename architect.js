@@ -207,7 +207,7 @@ function processConfig(configPath, options) {
 exports.startContainers = startContainers;
 function startContainers(config, callback) {
     var hub = new EventEmitter();
-    var Agent = require('remoteagent-protocol').Agent;
+    var Agent = require('architect-agent').Agent;
 
     var containers = {};
 
@@ -274,8 +274,8 @@ function startContainers(config, callback) {
     // Create a new container in a child process
     function spawnContainer(name, broadcast, callback) {
         var spawn = require('child_process').spawn;
-        var Agent = require('remoteagent-protocol').Agent;
-        var socketTransport = require('remoteagent-protocol/lib/socket-transport');
+        var Agent = require('architect-agent').Agent;
+        var socketTransport = require('architect-socket-transport');
 
         var child = spawn(process.execPath, [require.resolve('./worker-process.js')], {
             customFds: [-1, 1, 2],
