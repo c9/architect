@@ -11,7 +11,7 @@
         "node": "~0.6.11"
     },
     "dependencies": {
-        "architect": "~0.0.1",
+        "architect": "~0.0.3",
         "architect-http": "~0.0.1",
         "architect-http-static": "~0.0.1",
         "stack": "~0.1.0",
