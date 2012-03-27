@@ -1,0 +1,10 @@
+{
+    "name": "architect-agent-browser",
+    "version": "0.0.1",
+    "main": "agent-browser.js",
+    "private": true,
+
+    "plugin": {
+        "consumes": ["http"]
+    }
+}

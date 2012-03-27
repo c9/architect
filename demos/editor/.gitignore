@@ -1,0 +1,5 @@
+node_modules/architect-agent
+node_modules/creationix
+node_modules/embedder
+node_modules/websocket
+node_modules/.bin
