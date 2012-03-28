@@ -7,7 +7,7 @@ module.exports = {
                 { packagePath: "../plugins/architect-http-static",
                   root: "www" },
                 { packagePath: "../plugins/architect-agent-browser",
-                  methods: require('fs') },
+                  methods: require('../fsmethods') },
             ]
         }
     }

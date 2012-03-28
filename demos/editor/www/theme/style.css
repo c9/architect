@@ -6,7 +6,7 @@ body {
   border: 0;
   width: 100%;
   left: 0;
-  right: 0
+  right: 0;
   padding: 0;
   margin: 0;
 }
@@ -38,9 +38,12 @@ textarea {
   -webkit-box-flex: 1;
   box-flex: 1;
 }
-.vbox -> .flex {
+.vbox > .flex {
   height: 0;
 }
-.hbox -> .flex {
+.hbox > .flex {
   width: 0;
+}
+#filelist {
+  overflow-x:hidden;
 }

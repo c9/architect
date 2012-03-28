@@ -1,19 +1,58 @@
-var Agent = require('architect-agent').Agent;
 
-$(function () {
 
-  // Create a local agent
-  var agent = new Agent({
-    alert: alert.bind(null)
-  });
-  
-  connect("ws://localhost:8080/", agent, function (server) {
-    console.log("Server", server);
-    server.readFile("/etc/passwd", "utf8", function (err, result) {
-      $("#editor").text(result);
+
+
+var FileEntry = Backbone.Model.extend({});
+
+var Directory = Backbone.Collection.extend({
+  model: FileEntry,
+  chdir: function (path) {
+    server.readdir(path, function (err, filenames) {
+      var data = filenames.map(function (name) {
+        return {name:name};
+      });
+      console.log(data);
+      listing.reset(data);
+      view.render();
     });
-  });
+  }
+});
 
+var FileListView = Backbone.View.extend({
+  el: $("#filelist"),
+  
+  initialize: function () {
+  },
+  
+  render: function() {
+    _.each(this.model.models, function (item) {
+      var m = new FileListItemView({model:item});
+      this.$el.append(m.render().el);
+    }, this);
+    return this;
+  }
+
+});
+
+var FileListItemView = Backbone.View.extend({
+
+  render: function () {
+    $(this.el).text(this.model.get("name"));
+    return this;
+  }
+});
+
+var listing = new Directory();
+
+var view = new FileListView({model:listing});
+view.render();
+
+
+var server;
+connect("ws://localhost:8080/", new (require('architect-agent').Agent), function (remote) {
+  server = remote;
+  listing.chdir("/home/tim");
+  console.log("Server connected");
 });
 
 // Connect to the webserver over websocket and attach to agent as transport.
