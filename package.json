@@ -6,7 +6,8 @@
     "author": "ajax.org B.V. <info@ajax.org>",
     "contributors": [
         { "name": "Tim Caswell", "email": "tim@c9.io>" },
-        { "name": "Fabian Jakobs", "email": "fabian@c9.io" }
+        { "name": "Fabian Jakobs", "email": "fabian@c9.io" },
+        { "name": "Christoph Dorn", "email": "christoph@christophdorn.com" }
     ],
     "repository": {
         "url": ""
