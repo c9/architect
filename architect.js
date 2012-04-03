@@ -2,8 +2,12 @@ var path = require('path');
 var EventEmitter = require('events').EventEmitter;
 
 exports.createApp = createApp;
-function createApp(config, callback) {
-    config = processConfig(config);
+function createApp(config, options, callback) {
+    if (typeof callback === "undefined") {
+        callback = options;
+        options = {};
+    }
+    config = processConfig(config, options);
     // console.log("compiled config:");
     // console.log(JSON.stringify(config));
     startContainers(config, callback);
