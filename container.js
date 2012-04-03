@@ -16,6 +16,7 @@ function createContainer(containerName, broadcast, callback) {
     services.hub = {
         on: hub.on.bind(hub)
     };
+    serviceMap.hub = true;
 
     hub.on('serviceReady', function (message) {
         serviceMap[message.name] = message;
