@@ -177,3 +177,10 @@ And we would start the server with:
 ```bash
 node app.js
 ```
+
+## More Examples
+
+Clearly you would never use this system for such a simple application.  For a slightly more advanced example, see the "everything" example in the demos folder.  It contains two configs [default][] and [simple][].  One simple that puts everything in the same process, and a more advanced one that shards the plugins manually across several processes.  The plugins work the same on both!
+
+[default]: https://github.com/c9/architect/blob/master/demos/everything/configs/default.js
+[simple]: https://github.com/c9/architect/blob/master/demos/everything/configs/simple.js
