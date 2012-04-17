@@ -59,6 +59,21 @@ module.exports = function startup(options, imports, register) {
 
 Notice that we didn't use the `imports` parameter.  That's for plugins that consume services.  
 
+Every plugin needs a package.json to declare it's plugin properties.  This can be the same package.json you use for npm if this plugin is to be published on npm.
+
+```json
+{
+    "name": "http-server",
+    "version": "0.0.1",
+    "main": "http.js",
+    "private": true,
+
+    "plugin": {
+        "provides": ["http"]
+    }
+}
+```
+
 Notice that the API function `setRoute` has a callback at the end.  This is so that the plugin consuming this API can know that setRoute finished.  Remember that the client isn't always in the same process so these calls can be async.
 
 Now we'll write a simple plugin that registers a route.
@@ -84,3 +99,81 @@ module.exports = function startup(options, imports, register) {
 ```
 
 Here we used the `imports` parameter to get at the `http` service provided by the first plugin.  All plugins need to call `register` when they are done even if they don't provide any services.  Here we simply chained the callback from `setRoute`.  Once the route is setup we're done!
+
+The json file would look like:
+
+```json
+{
+    "name": "index-page",
+    "version": "0.0.1",
+    "main": "index.js",
+    "private": true,
+
+    "plugin": {
+        "consumes": ["http"]
+    }
+}
+```
+
+This lets architect know that when the `index-page` plugin is loaded, it first needs to start the plugin that provides the http service.
+
+If you're worried about service names conflicting, there is a feature where you can alias the service names in the app config.
+
+## Plugin Config
+
+Ok, now you're asking how architect knew to load the http plugin first so that the index plugin could use it right?  Well the core of an architect app is the config file.  Actually an app is nothing more than a set of plugins and one or more plugin config files.  The plugin config file specifies what plugins to use and what options to send them.
+
+Going with our previous example, let's create a simple config that only has one process and two plugins, `http-server` and `index-page`.
+
+The config file can be JSON or JS (or even coffeescript if you have it), it will be loaded by node's `require`, so same rules as that.
+
+```js
+module.exports = {
+    containers: {
+        master: {
+            plugins: [
+                { packagePath: "./plugins/http-server", port: 8080 },
+                "./plugins/index-page"
+            ]
+        }
+    }
+};
+```
+
+If the plugin has any config options, put the require path to the plugin as packagePath and other properties to be sent to the plugin.  For the `index-page` plugin we don't have any parameters so we can just use the string shortcut.
+
+Note that these paths are relative to the config file as if the config file did the require.  This follows normal node require paths otherwise.  You can install plugins via npm, put them manually in a `node_modules` folder, or use relative paths like I did here.
+
+## The App
+
+Now that we have two plugins and a plugin config we can create a real app using the architect system.  Assuming you installed architect with npm, the following could work:
+
+```js
+var architect = require("architect");
+
+architect.createApp("simple-config.js", function (err, app) {
+    if (err) throw err;
+    console.log("Started the App!");
+});
+```
+
+Our tree would look like:
+
+```
+.
+├── app.js
+├── plugins
+│   ├── http-server
+│   │   ├── http.js
+│   │   └── package.json
+│   └── index-page
+│       ├── index.js
+│       └── package.json
+└── simple-config.js
+```
+
+And we would start the server with:
+
+```bash
+node app.js
+```
