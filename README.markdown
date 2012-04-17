@@ -12,11 +12,11 @@ Some key features are:
  - If the plugin consuming a service is not in the same process as the plugin providing the service an advanced IPC is used transparently.
  - Callbacks and streams can be serialized across this IPC channel.
 
- With this system, plugin authors can focus on doing one thing and doing it well.  The sysadmin can focus on the architecture of the system through the app config.  And Architect will handle connecting everything together automatically.
+With this system, plugin authors can focus on doing one thing and doing it well.  The sysadmin can focus on the architecture of the system through the app config.  And Architect will handle connecting everything together automatically.
 
- ## Plugins
+## Plugins
 
- The best way to explain plugins is to provide an example.  We'll start out with a simple HTTP plugin that provides an "http" service.  It will have a service API that can be used to register HTTP route handlers.
+The best way to explain plugins is to provide an example.  We'll start out with a simple HTTP plugin that provides an "http" service.  It will have a service API that can be used to register HTTP route handlers.
 
 ```js
 var http = require('http');
