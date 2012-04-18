@@ -78,12 +78,15 @@ function processConfig(configPath, options) {
                 pluginConfig.packagePath = packagePath;
 
                 // Look up the provides and consumes in the package.json and merge.
-                pluginConfigBase = require(packagePath).plugin;
+                try {
+                    pluginConfigBase = require(packagePath).plugin;
+                } catch(err) {
+                    throw new Error("Error '" + err + "' loading config from " + packagePath);
+                }
             }
 
             if (!pluginConfigBase) {
-                var err = new Error("Missing 'plugin' section in " + packagePath);
-                return callback(err);
+                throw new Error("Missing 'plugin' section in " + packagePath);
             }
 
             for (var key in pluginConfigBase) {
