@@ -9,9 +9,6 @@
         { "name": "Fabian Jakobs", "email": "fabian@c9.io" },
         { "name": "Christoph Dorn", "email": "christoph@christophdorn.com" }
     ],
-    "repository": {
-        "url": ""
-    },
     "main": "architect.js",
     "repository" : {
         "type" : "git",
