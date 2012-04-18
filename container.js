@@ -161,11 +161,19 @@ function createContainer(containerName, broadcast, callback) {
         }
         broadcast("containerReady", containerName);
     }
+    
+    function getService(name) {
+        if (!services[name]) {
+            throw new Error("Service with name '" + name + "' not found in container '" + containerName + "'!");
+        }
+        return services[name];
+    }
 
     // This is the public interface that the master architect uses.
     callback(null, {
         onBroadcast: onBroadcast,
-        initialize: initialize
+        initialize: initialize,
+        getService: getService
     });
 
 }
