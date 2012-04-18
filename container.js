@@ -63,7 +63,7 @@ function createContainer(containerName, broadcast, callback) {
                     services[name] = functions;
                     listen(new Agent(functions), function (err, address) {
                         if (err) throw err;
-                        broadcast("serviceReady", { name: name, address: address, functions: Object.keys(provides[name]) });
+                        broadcast("serviceReady", { name: name, address: address, functions: Object.keys(provides[name] || {}) });
                     });
                 });
 
