@@ -116,7 +116,14 @@ function createContainer(containerName, broadcast, callback) {
 
         // Load the plugin
         var startup = options.startup || require(dirname(packagePath));
-        startup(options, imports, callback);
+        var timeoutId = setTimeout(function() {
+            throw new Error("TIMEOUT: Plugin at '" + dirname(packagePath) + "' did not call 'register' within 5 seconds!");
+        }, 5000);
+        function startupDone() {
+            clearTimeout(timeoutId);
+            callback.apply(null, arguments);
+        }
+        startup(options, imports, startupDone);
     }
 
     var clientAgent = new Agent({});
