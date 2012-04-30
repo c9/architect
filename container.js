@@ -119,9 +119,16 @@ function createContainer(containerName, broadcast, callback) {
         var timeoutId = setTimeout(function() {
             throw new Error("TIMEOUT: Plugin at '" + dirname(packagePath) + "' did not call 'register' within 5 seconds!");
         }, 5000);
-        function startupDone() {
+        function startupDone(err) {
             clearTimeout(timeoutId);
-            callback.apply(null, arguments);
+            // Long-running register (> 5 sec).
+            if (typeof err === "function") {
+                err(function() {
+                    callback.apply(null, arguments);
+                });
+            } else {
+                callback.apply(null, arguments);
+            }
         }
         startup(options, imports, startupDone);
     }

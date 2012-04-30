@@ -185,3 +185,18 @@ Clearly you would never use this system for such a simple application.  For a sl
 [everything]: https://github.com/c9/architect/tree/master/demos/everything
 [default]: https://github.com/c9/architect/blob/master/demos/everything/configs/default.js
 [simple]: https://github.com/c9/architect/blob/master/demos/everything/configs/simple.js
+
+
+## Advanced
+
+**Asynchronous register**
+
+If you have a plugin that needs to hold up the registration process for more than 5 seconds use an asynchronous register.
+Make sure you eventually return or architect will hang!
+
+    register(function(register) {
+
+        // Take more than 5 seconds.
+
+        register(err, null);
+    });
