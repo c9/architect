@@ -264,7 +264,7 @@ function startContainers(config, callback) {
     //  - containersDone {} - all containers are initialized
     function broadcast(name, message) {
         if (config.console && config.console.info) {
-            console.info("BROADCAST: " + name, message);
+            //console.info("BROADCAST: " + name, message);
         }
         hub.emit(name, message);
         process.nextTick(function () {
