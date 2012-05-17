@@ -24,8 +24,7 @@ function processConfig(configPath, options) {
         config = configPath;
         configPath = "<provided config object>";
         if (!config.basePath) {
-            var err = new Error("'basePath' required in config object");
-            return callback(err);
+            throw new Error("'basePath' required in config object");
         }
     } else {
         configPath = require.resolve(configPath);
