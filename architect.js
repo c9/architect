@@ -283,10 +283,13 @@ function startContainers(config, callback) {
         var Agent = require('architect-agent').Agent;
         var socketTransport = require('architect-socket-transport');
 
+        var env = process.env || {};
+        env.ARCHITECT_CONTAINER_NAME = name;
+
         var child = spawn(process.execPath, [require.resolve('./worker-process.js')], {
             customFds: [-1, 1, 2],
             stdinStream: createPipe(true),
-            env: { ARCHITECT_CONTAINER_NAME: name }
+            env: env
         });
 
         var transport = socketTransport(child.stdin);
