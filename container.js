@@ -3,9 +3,11 @@ var net = require('net');
 var dirname = require('path').dirname;
 var Agent = require('architect-agent').Agent;
 var socketTransport = require('architect-socket-transport');
+var safeReturn = require('safereturn').safeReturn;
 
 exports.createContainer = createContainer;
 function createContainer(containerName, broadcast, callback) {
+    callback = safeReturn(callback);
     var containerConfig; // Will be set by initialize()
     var serviceMap = {};
     var services = {};
@@ -35,7 +37,9 @@ function createContainer(containerName, broadcast, callback) {
     function onBroadcast(name, message) {
         hub.emit(name, message);
     }
-    function initialize(config) {
+    function initialize(config, callback) {
+        callback = safeReturn(callback);
+
         broadcast("containerStarting", containerName);
         containerConfig = config;
 
@@ -49,20 +53,20 @@ function createContainer(containerName, broadcast, callback) {
         containerConfig.plugins.forEach(function (options, index) {
             left++;
             startPlugin(options, function (err, provides) {
-                if (err) throw err; // TODO: route this somewhere?
+                if (err) return callback(err);
 
                 // Export the services the plugin provides
                 options.provides && options.provides.forEach(function (name) {
                     if (!(provides && provides.hasOwnProperty(name))) {
-                        throw new Error(options.packagePath + " declares it provides '" + name + "' but didn't export it.");
+                        return callback(new Error(options.packagePath + " declares it provides '" + name + "' but didn't export it."));
                     }
                     if (services.hasOwnProperty(name)) {
-                        throw new Error(options.packagePath + " attempted to override an already provided service " + name + ".");
+                        return callback(new Error(options.packagePath + " attempted to override an already provided service " + name + "."));
                     }
                     var functions = provides[name];
                     services[name] = functions;
                     listen(new Agent(functions), function (err, address) {
-                        if (err) throw err;
+                        if (err) return callback(err);
                         broadcast("serviceReady", { name: name, address: address, functions: Object.keys(provides[name] || {}) });
                     });
                 });
@@ -77,11 +81,13 @@ function createContainer(containerName, broadcast, callback) {
         function check() {
             if (--left) return;
             initialized();
+            callback();
         }
 
     }
 
     function startPlugin(options, callback) {
+        callback = safeReturn(callback);
         var packagePath = options.packagePath;
 
         // Defer the plugin if it's required services aren't started yet
@@ -105,7 +111,7 @@ function createContainer(containerName, broadcast, callback) {
                         var args = Array.prototype.slice.call(arguments);
                         var self = this;
                         connect(serviceName, function (err, service) {
-                            if (err) throw err; // TODO: route properly
+                            if (err) return callback(err); // TODO: route properly
                             service[functionName].apply(self, args);
                         });
                     };
@@ -117,7 +123,7 @@ function createContainer(containerName, broadcast, callback) {
         // Load the plugin
         var startup = options.startup || require(dirname(packagePath));
         var timeoutId = setTimeout(function() {
-            throw new Error("TIMEOUT: Plugin at '" + dirname(packagePath) + "' did not call 'register' within 5 seconds!");
+            callback(new Error("TIMEOUT: Plugin at '" + dirname(packagePath) + "' did not call 'register' within 5 seconds!"));
         }, 5000);
         function startupDone(err) {
             clearTimeout(timeoutId);
@@ -162,7 +168,7 @@ function createContainer(containerName, broadcast, callback) {
                 process.setgid(containerConfig.gid);
             } catch (err) {
                 if (err.code === "EPERM") console.error("WARNING: '%s' cannot set gid to %s", containerName, JSON.stringify(containerConfig.gid));
-                else throw err;
+                else return callback(err);
             }
         }
         if (containerConfig.uid) {
@@ -170,15 +176,15 @@ function createContainer(containerName, broadcast, callback) {
                 process.setuid(containerConfig.uid);
             } catch (err) {
                 if (err.code === "EPERM") console.error("WARNING: '%s' cannot set uid to %s", containerName, JSON.stringify(containerConfig.uid));
-                else throw err;
+                else return callback(err);
             }
         }
         broadcast("containerReady", containerName);
     }
-    
+
     function getService(name) {
         if (!services[name]) {
-            throw new Error("Service with name '" + name + "' not found in container '" + containerName + "'!");
+            return callback(new Error("Service with name '" + name + "' not found in container '" + containerName + "'!"));
         }
         return services[name];
     }

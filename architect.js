@@ -1,13 +1,19 @@
 var path = require('path');
 var EventEmitter = require('events').EventEmitter;
+var safeReturn = require('safereturn');
 
 exports.createApp = createApp;
 function createApp(config, options, callback) {
+    callback = safeReturn(callback);
     if (typeof callback === "undefined") {
         callback = options;
         options = {};
     }
-    config = processConfig(config, options);
+    try {
+        config = processConfig(config, options);
+    } catch (err) {
+        return callback(err);
+    }
     // console.log("compiled config:");
     // console.log(JSON.stringify(config));
     startContainers(config, callback);
@@ -15,6 +21,7 @@ function createApp(config, options, callback) {
 
 // Gather and preflight the config.
 exports.processConfig = processConfig;
+// This is a sync function and can throw, wrap in try..catch when calling.
 function processConfig(configPath, options) {
     options = options || {};
     var config = {};
@@ -212,6 +219,7 @@ function processConfig(configPath, options) {
 
 exports.startContainers = startContainers;
 function startContainers(config, callback) {
+    callback = safeReturn(callback);
     var hub = new EventEmitter();
     var Agent = require('architect-agent').Agent;
 
@@ -234,7 +242,7 @@ function startContainers(config, callback) {
             spawnContainer;
 
         createContainer(name, broadcast, function (err, container) {
-            if (err) throw err;
+            if (err) return callback(err);
             containers[name] = container;
             broadcast("containerCreated", name);
             if (--createLeft) return;
@@ -279,6 +287,7 @@ function startContainers(config, callback) {
 
     // Create a new container in a child process
     function spawnContainer(name, broadcast, callback) {
+        callback = safeReturn(callback);
         var spawn = require('child_process').spawn;
         var Agent = require('architect-agent').Agent;
         var socketTransport = require('architect-socket-transport');
