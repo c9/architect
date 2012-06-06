@@ -1,341 +1,232 @@
-var path = require('path');
+var dirname = require('path').dirname;
+var resolve = require('path').resolve;
+var existsSync = require('path').existsSync;
+var realpathSync = require('fs').realpathSync;
 var EventEmitter = require('events').EventEmitter;
-var safeReturn = require('safereturn');
+var inherits = require('util').inherits;
 
+exports.loadConfig = loadConfig;
 exports.createApp = createApp;
-function createApp(config, options, callback) {
-    callback = safeReturn(callback);
-    if (typeof callback === "undefined") {
-        callback = options;
-        options = {};
-    }
-    try {
-        config = processConfig(config, options);
-    } catch (err) {
-        return callback(err);
-    }
-    // console.log("compiled config:");
-    // console.log(JSON.stringify(config));
-    startContainers(config, callback);
-}
+exports.Architect = Architect;
 
-// Gather and preflight the config.
-exports.processConfig = processConfig;
-// This is a sync function and can throw, wrap in try..catch when calling.
-function processConfig(configPath, options) {
-    options = options || {};
-    var config = {};
-
-    // Allow passing in either config path or config object
-    if (typeof configPath === "object") {
-        config = configPath;
-        configPath = "<provided config object>";
-        if (!config.basePath) {
-            throw new Error("'basePath' required in config object");
+// This is assumed to be used at startup and uses sync I/O as well as can
+// throw exceptions.  It loads and parses a config file.
+function loadConfig(configPath) {
+    var config = require(configPath);
+    var base = dirname(configPath);
+    config.forEach(function (plugin, index) {
+        // Shortcut where string is used for plugin without any options.
+        if (typeof plugin === "string") {
+            plugin = config[index] = { packagePath: plugin };
         }
-    } else {
-        configPath = require.resolve(configPath);
-        config = require(configPath);
-    }
-
-    // Overwrite console object from config if set in createApp options
-    if (typeof options.console !== "undefined") {
-        config.console = options.console;
-    } else {
-        config.console = console;
-    }
-
-    // Default basePath to the dirname of the config file
-    var basePath = config.basePath = config.basePath || path.dirname(configPath);
-
-    // Resolve plugin paths to the basePath and merge in plugin configs from
-    // package.json files.
-    Object.keys(config.containers).forEach(function (containerName) {
-        var containerConfig = config.containers[containerName];
-        var pluginsConfigs = containerConfig.plugins;
-        pluginsConfigs && pluginsConfigs.forEach(function (pluginConfig, index) {
-
-            // if plugin is a string it is interpreted as the package path
-            if (typeof pluginConfig === "string") {
-                pluginsConfigs[index] = pluginConfig = {
-                    packagePath: pluginConfig
-                };
-            }
-
-            // packagePath is required on all plugins
-            if (!pluginConfig.hasOwnProperty("packagePath")) {
-                var err = new Error("'packagePath' required in `" +
-                    configPath + "` at " + containerName + "[" + index + "]");
-                return callback(err);
-            }
-
-            var pluginConfigBase;
-
-            // the architect app can inject plugins into the master
-            if (pluginConfig.plugin) {
-                if (containerName !== "master")
-                    return new Error("Plugins can only be injected into the master container");
-
-                var pluginConfigBase = pluginConfig.plugin;
-            }
-            else {
-                // Replace with fully resolved path
-                var packagePath = resolvePackage(basePath, pluginConfig.packagePath);
-                pluginConfig.packagePath = packagePath;
-
-                // Look up the provides and consumes in the package.json and merge.
-                try {
-                    pluginConfigBase = require(packagePath).plugin;
-                } catch(err) {
-                    throw new Error("Error '" + err + "' loading config from " + packagePath);
+        // The plugin is a package on the disk.  We need to load it.
+        if (plugin.hasOwnProperty("packagePath")) {
+            plugin.packagePath = resolvePackageSync(base, plugin.packagePath);
+            var packageConf = require(plugin.packagePath);
+            var defaults = packageConf.plugin || {};
+            Object.keys(defaults).forEach(function (key) {
+                if (!plugin.hasOwnProperty(key)) {
+                    plugin[key] = defaults[key];
                 }
-            }
-
-            if (!pluginConfigBase) {
-                throw new Error("Missing 'plugin' section in " + packagePath);
-            }
-
-            for (var key in pluginConfigBase) {
-                if (!pluginConfig.hasOwnProperty(key)) {
-                    pluginConfig[key] = pluginConfigBase[key];
-                }
-            }
-
-            // provide defaults
-            pluginConfig.provides = pluginConfig.provides || [];
-            pluginConfig.consumes = pluginConfig.consumes || [];
-        });
-    });
-
-    // Set a tmpdir for anything that might need it.
-    config.tmpdir = config.tmpdir || path.join(process.cwd(), ".architect");
-
-    // Tell which containers need to listen for inbound connections. Also set
-    // name and tmpdir for all containers.
-    Object.keys(config.containers).forEach(function (containerName) {
-        var containerConfig = config.containers[containerName];
-        if (needsServe(config.containers, containerName)) {
-            containerConfig.needsServe = true;
+            });
+            plugin.setup = require(dirname(plugin.packagePath));
+            plugin.consumes = plugin.consumes || [];
+            plugin.provides = plugin.provides || [];
         }
-        containerConfig.name = containerName;
-        containerConfig.tmpdir = config.tmpdir;
     });
-
-    // Make sure there are no dependency cycles that would prevent the app
-    // from starting.
-    checkCycles(config);
-
+    checkConfig(config);
     return config;
+}
 
-    // pre flight dependency check
-    function checkCycles(config) {
-        var plugins = [];
-        var containers = config.containers;
-        Object.keys(containers).forEach(function(containerName) {
-            var pluginConfigs = containers[containerName].plugins || [];
-            pluginConfigs.forEach(function(pluginConfig) {
-                plugins.push({
-                    packagePath: pluginConfig.packagePath,
-                    provides: pluginConfig.provides.concat(),
-                    consumes: pluginConfig.consumes.concat()
-                });
-            });
-        });
+// Check a plugin config list for bad dependencies and throw on error
+function checkConfig(config) {
 
-        var resolved = {
-            hub: true
-        };
-        var changed = true;
+    // Check for the required fields in each plugin.
+    config.forEach(function (plugin) {
+        if (plugin.checked) { return; }
+        if (!plugin.hasOwnProperty("setup")) {
+            throw new Error("Plugin is missing the setup function " + JSON.stringify(plugin));
+        }
+        if (!plugin.hasOwnProperty("provides")) {
+            throw new Error("Plugin is missing the provides array " + JSON.stringify(plugin));
+        }
+        if (!plugin.hasOwnProperty("consumes")) {
+            throw new Error("Plugin is missing the consumes array " + JSON.stringify(plugin));
+        }
+    });
 
-        while(plugins.length && changed) {
-            changed = false;
+    // Simulate the plugins providing and consuming their services to see if we
+    // will get stuck.
+    var services = { hub: true };
+    var left = config.length;
+    do {
+        var changed = false;
+        config.forEach(function (plugin) {
+            // Skip any plugin that's already checked
+            if (plugin.checked) { return; }
+            // Skip any plugin that's still pending services
+            if (!plugin.consumes.every(function (name) {
+                return services[name];
+            })) { return; }
 
-            plugins.concat().forEach(function(plugin) {
-                var consumes = plugin.consumes.concat();
-
-                var resolvedAll = true;
-                for (var i=0; i<consumes.length; i++) {
-                    var service = consumes[i];
-                    if (!resolved[service]) {
-                        resolvedAll = false;
-                    } else {
-                        plugin.consumes.splice(plugin.consumes.indexOf(service), 1);
-                    }
+            // Record any services this plugin provides
+            plugin.provides.forEach(function (name) {
+                if (services.hasOwnProperty(name)) {
+                    throw new Error("Service name conflict " + name);
                 }
-
-                if (!resolvedAll)
-                    return;
-
-                plugins.splice(plugins.indexOf(plugin), 1);
-                plugin.provides.forEach(function(service) {
-                    resolved[service] = true;
-                });
-                changed = true;
+                services[name] = true;
             });
-        }
+            // mark the plugin as done and move on.
+            plugin.checked = true;
+            left--;
+            changed = true;
+        });
+    } while(changed);
 
-        if (plugins.length) {
-            console.error("Could not resolve dependencies of these plugins:", plugins);
-            console.error("Resovled services:", resolved);
-            throw new Error("Could not resolve dependencies");
-        }
-    }
-
-    function calcProvides(container) {
-        var provides = {};
-        var plugins = container.plugins;
-        plugins && plugins.forEach(function (plugin) {
-            plugin.provides.forEach(function (service) {
-                provides[service] = true;
+    if (left) {
+        var missing = {};
+        config.forEach(function (plugin) {
+            if (plugin.checked) { return; }
+            plugin.consumes.forEach(function (name) {
+                missing[name] = true;
             });
         });
-        return provides;
+        missing = Object.keys(missing);
+        throw new Error("Dependency issue with services: " + JSON.stringify(missing));
     }
 
-    function calcDepends(container, provides) {
-        if (!container.plugins) return false;
-        var i = container.plugins.length;
-        while (i--) {
-            var consumes = container.plugins[i].consumes;
-            var j = consumes.length;
-            while (j--) {
-                if (provides[consumes[j]]) return true;
+    // Stamp it approved so we don't check it again.
+    config.checked = true;
+}
+
+function Architect(config) {
+    var app = this;
+    app.config = config;
+    var services = app.services = {
+        hub: {
+            on: function (name, callback) {
+                app.on(name, callback);
             }
         }
-        return false;
-    }
+    };
 
-    function needsServe(containers, name) {
-        var provides = calcProvides(containers[name]);
-        // First calculate what all services this container provides.
-        for (var key in containers) {
-            if (!containers.hasOwnProperty(key)) continue;
-            if (key === name) continue;
-            if (calcDepends(containers[key], provides)) return true;
+    // Check the config if it's not already checked.
+    if (!config.checked) {
+        try {
+            checkConfig(config)
+        } catch (err) {
+            app.emit("error", err);
         }
-        return false;
     }
-}
 
-exports.startContainers = startContainers;
-function startContainers(config, callback) {
-    callback = safeReturn(callback);
-    var hub = new EventEmitter();
-    var Agent = require('architect-agent').Agent;
+    var running;
+    (function startPlugins() {
+        if (running) return;
+        running = true;
+        var pending = 0;
+        do {
+            var changed = false;
+            config.forEach(function (plugin) {
+                // Skip already-started and not-yet-ready plugins
+                if (plugin.started) return;
+                if (!plugin.consumes.every(function (name) {
+                    return services[name];
+                })) { return; }
 
-    var containers = {};
+                pending++;
 
-    // This agent is used for the star topology of events.  All child processes have access to it.
-    var hubAgent = new Agent({
-        broadcast: broadcast
-    });
-
-    // Create all the containers in parallel (as dumb workers).  Then once
-    // they are all created, tell them all to initialize in parallel.  When
-    // they are all ready, call the callback.
-    var createLeft, readyLeft;
-    createLeft = readyLeft = Object.keys(config.containers).length;
-    // Create all the containers in parallel.
-    Object.keys(config.containers).forEach(function (name) {
-        var createContainer = (name === "master") ?
-            require('./container').createContainer :
-            spawnContainer;
-
-        createContainer(name, broadcast, function (err, container) {
-            if (err) return callback(err);
-            containers[name] = container;
-            broadcast("containerCreated", name);
-            if (--createLeft) return;
-            Object.keys(containers).forEach(function (name) {
-                containers[name].initialize(config.containers[name]);
+                var imports = {};
+                plugin.consumes.forEach(function (name) {
+                    imports[name] = services[name];
+                });
+                plugin.started = true;
+                plugin.setup(plugin, imports, function (err, provided) {
+                    if (err) { return app.emit("error", err); }
+                    plugin.provides.forEach(function (name) {
+                        if (!provided.hasOwnProperty(name)) {
+                            var err = new Error("Plugin failed to provide " + name + " service. " + JSON.stringify(plugin));
+                            return app.emit("error", err);
+                        }
+                        services[name] = provided[name];
+                        app.emit("service", name, services[name]);
+                        changed = true;
+                    });
+                    pending--;
+                    app.emit("plugin", plugin);
+                    if (changed) { startPlugins(); }
+                });
             });
-        });
-
-    });
-
-    hub.on('containerReady', checkReady);
-
-    function checkReady() {
-        if (--readyLeft) return;
-        broadcast("containersDone", Object.keys(containers));
-        callback(null, containers);
-    }
-
-    // A function that all containers have access to that enables broadcasting.
-    // The following kinds messages are broadcasts to all containers:
-    //  - serviceReady { container, socket, name, functions }
-    //  - servicesDone {} - all services are initialized
-    //  - serviceDied {serviceName}
-    //  - containerReady { container }
-    //  - containerDied {containerName}
-    //  - containersDone {} - all containers are initialized
-    function broadcast(name, message) {
-        if (config.console && config.console.info) {
-            //console.info("BROADCAST: " + name, message);
+        } while (changed);
+        running = false;
+        if (!pending) {
+            app.emit("ready", app);
         }
-        hub.emit(name, message);
-        process.nextTick(function () {
-            Object.keys(containers).forEach(function (key) {
-                if (typeof containers[key].onBroadcast !== "function") {
-                    console.log("containers[%s]", key, containers[key]);
-                }
-                containers[key].onBroadcast(name, message);
-            });
-        });
-    }
-
-
-    // Create a new container in a child process
-    function spawnContainer(name, broadcast, callback) {
-        callback = safeReturn(callback);
-        var spawn = require('child_process').spawn;
-        var Agent = require('architect-agent').Agent;
-        var socketTransport = require('architect-socket-transport');
-
-        var env = process.env || {};
-        env.ARCHITECT_CONTAINER_NAME = name;
-
-        var child = spawn(process.execPath, [require.resolve('./worker-process.js')], {
-            customFds: [-1, 1, 2],
-            stdinStream: createPipe(true),
-            env: env
-        });
-
-        var transport = socketTransport(child.stdin);
-        hubAgent.attach(transport, function (container) {
-            callback(null, container);
-        });
-        child.stdin.resume();
-
-        // TODO: Monitor child for life
-    }
-
+    }());
 }
+inherits(Architect, EventEmitter);
 
-// Taken from node's child process code.
-var Pipe;
-function createPipe(ipc) {
-  // Lazy load
-  if (!Pipe) {
-    Pipe = process.binding('pipe_wrap').Pipe;
-  }
-  return new Pipe(ipc);
+
+// Returns an event emitter that represents the app.  It can emit events.
+// event: ("service" name, service) emitted when a service is ready to be consumed.
+// event: ("plugin", plugin) emitted when a plugin registers.
+// event: ("ready", app) emitted when all plugins are ready.
+// event: ("error", err) emitted when something goes wrong.
+// app.services - a hash of all the services in this app
+// app.config - the plugin config that was passed in.
+function createApp(config, callback) {
+    var app = new Architect(config);
+    if (callback) {
+        app.on("error", onError);
+        app.on("ready", onReady);
+        function onError(err) {
+            reset();
+            callback(err);
+        }
+        function onReady(app) {
+            reset();
+            callback(null, app);
+        }
+        function reset() {
+            app.removeListener("error", onError);
+            app.removeListener("ready", onReady);
+        }
+    }
+    return app;
 }
 
 // Node style package resolving so that plugins' package.json can be found relative to the config file
 // It's not the full node require system algorithm, but it's the 99% case
-function resolvePackage(base, packagePath) {
+// This throws, make sure to wrap in try..catch
+var packagePathCache = {};
+function resolvePackageSync(base, packagePath) {
+    var originalBase = base;
+    if (!packagePathCache.hasOwnProperty(base)) {
+        packagePathCache[base] = {};
+    }
+    var cache = packagePathCache[base];
+    if (cache.hasOwnProperty(packagePath)) {
+        return cache[packagePath];
+    }
     if (packagePath[0] === "." || packagePath[0] === "/") {
-        var newPath = path.resolve(base, packagePath, "package.json");
-        if (path.existsSync(newPath)) return newPath;
+        var newPath = resolve(base, packagePath, "package.json");
+        if (existsSync(newPath)) {
+            newPath = realpathSync(newPath);
+            cache[packagePath] = newPath;
+            return newPath;
+        }
     }
     else {
         while (base) {
-            var newPath = path.resolve(base, "node_modules", packagePath, "package.json");
-            if (path.existsSync(newPath)) return newPath;
+            var newPath = resolve(base, "node_modules", packagePath, "package.json");
+            if (existsSync(newPath)) {
+                newPath = realpathSync(newPath);
+                cache[packagePath] = newPath;
+                return newPath;
+            }
             base = base.substr(0, base.lastIndexOf("/"));
         }
     }
-    throw new Error("Can't find '" + packagePath + "' relative to '" + base + '"');
+    var err = new Error("Can't find '" + packagePath + "' relative to '" + originalBase + "'");
+    err.code = "ENOENT";
+    throw err;
 }
-
