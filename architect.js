@@ -6,6 +6,7 @@ var EventEmitter = require('events').EventEmitter;
 var inherits = require('util').inherits;
 
 exports.loadConfig = loadConfig;
+exports.loadPlugins = loadPlugins;
 exports.createApp = createApp;
 exports.Architect = Architect;
 
@@ -14,6 +15,16 @@ exports.Architect = Architect;
 function loadConfig(configPath) {
     var config = require(configPath);
     var base = dirname(configPath);
+    config = loadPlugins(config, base);
+    checkConfig(config);
+    return config;
+}
+
+function loadPlugins(config, base) {
+    if (!base) {
+        throw new Error("Required 'base' argument must be provided!");
+    }
+    config = [].concat(config);
     config.forEach(function (plugin, index) {
         // Shortcut where string is used for plugin without any options.
         if (typeof plugin === "string") {
@@ -33,8 +44,11 @@ function loadConfig(configPath) {
             plugin.consumes = plugin.consumes || [];
             plugin.provides = plugin.provides || [];
         }
+        else if (plugin.hasOwnProperty("setup")) {
+            plugin.consumes = plugin.consumes || [];
+            plugin.provides = plugin.provides || [];
+        }
     });
-    checkConfig(config);
     return config;
 }
 
@@ -110,60 +124,70 @@ function Architect(config) {
         }
     };
 
-    // Check the config if it's not already checked.
-    if (!config.checked) {
-        try {
-            checkConfig(config)
-        } catch (err) {
-            app.emit("error", err);
+    // Ensure caller has chance to attach events.
+    process.nextTick(function() {
+        // Check the config if it's not already checked.
+        if (!config.checked) {
+            try {
+                checkConfig(config)
+            } catch (err) {
+                app.emit("error", err);
+            }
         }
-    }
 
-    var running;
-    (function startPlugins() {
-        if (running) return;
-        running = true;
-        var pending = 0;
-        do {
-            var changed = false;
-            config.forEach(function (plugin) {
-                // Skip already-started and not-yet-ready plugins
-                if (plugin.started) return;
-                if (!plugin.consumes.every(function (name) {
-                    return services[name];
-                })) { return; }
+        var running;
+        (function startPlugins() {
+            if (running) return;
+            running = true;
+            var pending = 0;
+            do {
+                var changed = false;
+                config.forEach(function (plugin) {
+                    // Skip already-started and not-yet-ready plugins
+                    if (plugin.started) return;
+                    if (!plugin.consumes.every(function (name) {
+                        return services[name];
+                    })) { return; }
 
-                pending++;
+                    pending++;
 
-                var imports = {};
-                plugin.consumes.forEach(function (name) {
-                    imports[name] = services[name];
-                });
-                plugin.started = true;
-                plugin.setup(plugin, imports, function (err, provided) {
-                    if (err) { return app.emit("error", err); }
-                    plugin.provides.forEach(function (name) {
-                        if (!provided.hasOwnProperty(name)) {
-                            var err = new Error("Plugin failed to provide " + name + " service. " + JSON.stringify(plugin));
-                            return app.emit("error", err);
-                        }
-                        services[name] = provided[name];
-                        app.emit("service", name, services[name]);
-                        changed = true;
+                    var imports = {};
+                    plugin.consumes.forEach(function (name) {
+                        imports[name] = services[name];
                     });
-                    pending--;
-                    app.emit("plugin", plugin);
-                    if (changed) { startPlugins(); }
+                    plugin.started = true;
+                    plugin.setup(plugin, imports, function (err, provided) {
+                        if (err) { return app.emit("error", err); }
+                        plugin.provides.forEach(function (name) {
+                            if (!provided.hasOwnProperty(name)) {
+                                var err = new Error("Plugin failed to provide " + name + " service. " + JSON.stringify(plugin));
+                                return app.emit("error", err);
+                            }
+                            services[name] = provided[name];
+                            app.emit("service", name, services[name]);
+                            changed = true;
+                        });
+                        pending--;
+                        app.emit("plugin", plugin);
+                        if (changed) { startPlugins(); }
+                    });
                 });
-            });
-        } while (changed);
-        running = false;
-        if (!pending) {
-            app.emit("ready", app);
-        }
-    }());
+            } while (changed);
+            running = false;
+            if (!pending) {
+                app.emit("ready", app);
+            }
+        }());
+    });
 }
 inherits(Architect, EventEmitter);
+
+Architect.prototype.getService = function(name) {
+    if (!this.services[name]) {
+        throw new Error("Service '" + name + "' not found in architect app!");
+    }
+    return this.services[name];
+}
 
 
 // Returns an event emitter that represents the app.  It can emit events.
