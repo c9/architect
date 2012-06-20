@@ -60,48 +60,59 @@ function checkConfig(config) {
         }
     });
 
-    // Simulate the plugins providing and consuming their services to see if we
-    // will get stuck.
-    var services = { hub: true };
-    var left = config.length;
-    do {
-        var changed = false;
-        config.forEach(function (plugin) {
-            // Skip any plugin that's already checked
-            if (plugin.checked) { return; }
-            // Skip any plugin that's still pending services
-            if (!plugin.consumes.every(function (name) {
-                return services[name];
-            })) { return; }
-
-            // Record any services this plugin provides
-            plugin.provides.forEach(function (name) {
-                if (services.hasOwnProperty(name)) {
-                    throw new Error("Service name conflict " + name);
-                }
-                services[name] = true;
-            });
-            // mark the plugin as done and move on.
-            plugin.checked = true;
-            left--;
-            changed = true;
-        });
-    } while(changed);
-
-    if (left) {
-        var missing = {};
-        config.forEach(function (plugin) {
-            if (plugin.checked) { return; }
-            plugin.consumes.forEach(function (name) {
-                missing[name] = true;
-            });
-        });
-        missing = Object.keys(missing);
-        throw new Error("Dependency issue with services: " + JSON.stringify(missing));
-    }
+    checkCycles(config);
 
     // Stamp it approved so we don't check it again.
     config.checked = true;
+}
+
+function checkCycles(config) {
+    var plugins = [];
+    config.forEach(function(pluginConfig) {
+        plugins.push({
+            packagePath: pluginConfig.packagePath,
+            provides: pluginConfig.provides.concat(),
+            consumes: pluginConfig.consumes.concat()
+        });
+    });
+
+    var resolved = {
+        hub: true
+    };
+    var changed = true;
+
+    while(plugins.length && changed) {
+        changed = false;
+
+        plugins.concat().forEach(function(plugin) {
+            var consumes = plugin.consumes.concat();
+
+            var resolvedAll = true;
+            for (var i=0; i<consumes.length; i++) {
+                var service = consumes[i];
+                if (!resolved[service]) {
+                    resolvedAll = false;
+                } else {
+                    plugin.consumes.splice(plugin.consumes.indexOf(service), 1);
+                }
+            }
+
+            if (!resolvedAll)
+                return;
+
+            plugins.splice(plugins.indexOf(plugin), 1);
+            plugin.provides.forEach(function(service) {
+                resolved[service] = true;
+            });
+            changed = true;
+        });
+    }
+
+    if (plugins.length) {
+        console.error("Could not resolve dependencies of these plugins:", plugins);
+        console.error("Resovled services:", resolved);
+        throw new Error("Could not resolve dependencies");
+    }
 }
 
 function Architect(config) {
