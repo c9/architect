@@ -136,6 +136,8 @@ function Architect(config) {
     }
 
     var running;
+    var destructors = [];
+
     (function startPlugins() {
         if (running) return;
         running = true;
@@ -167,6 +169,9 @@ function Architect(config) {
                         app.emit("service", name, services[name]);
                         changed = true;
                     });
+                    if (provided.hasOwnProperty("onDestroy"))
+                        destructors.push(provided.onDestroy);
+
                     pending--;
                     app.emit("plugin", plugin);
                     if (changed) { startPlugins(); }
@@ -178,9 +183,16 @@ function Architect(config) {
             app.emit("ready", app);
         }
     }());
+
+    this.destroy = function() {
+        destructors.forEach(function(destroy) {
+            destroy();
+        });
+
+        destructors = [];
+    };
 }
 inherits(Architect, EventEmitter);
-
 
 // Returns an event emitter that represents the app.  It can emit events.
 // event: ("service" name, service) emitted when a service is ready to be consumed.
@@ -193,18 +205,19 @@ function createApp(config, callback) {
     var app = new Architect(config);
     if (callback) {
         app.on("error", onError);
-        app.on("ready", onReady);
+        app.once("ready", done);
+
         function onError(err) {
-            reset();
-            callback(err);
+            app.removeListener("ready", done);
+            app.destroy();
+            done(err, app);
         }
-        function onReady(app) {
-            reset();
-            callback(null, app);
-        }
-        function reset() {
-            app.removeListener("error", onError);
-            app.removeListener("ready", onReady);
+
+        var called = false;
+        function done(err) {
+          if (called) return;
+          called = true;
+          callback(err, app);
         }
     }
     return app;
