@@ -16,7 +16,7 @@ function loadConfig(configPath) {
   var config = require(configPath);
   var base = dirname(configPath);
 
-  resolveConfig(config, base);
+  return resolveConfig(config, base);
 }
 
 function resolveConfig(config, base) {
@@ -169,7 +169,7 @@ function Architect(config) {
                         app.emit("service", name, services[name]);
                         changed = true;
                     });
-                    if (provided.hasOwnProperty("onDestroy"))
+                    if (provided && provided.hasOwnProperty("onDestroy"))
                         destructors.push(provided.onDestroy);
 
                     pending--;
@@ -205,12 +205,16 @@ function createApp(config, callback) {
     var app = new Architect(config);
     if (callback) {
         app.on("error", onError);
-        app.once("ready", done);
+        app.once("ready", onReady);
 
         function onError(err) {
             app.removeListener("ready", done);
             app.destroy();
             done(err, app);
+        }
+
+        function onReady() {
+            done(null, app);
         }
 
         var called = false;
