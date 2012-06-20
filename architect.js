@@ -6,14 +6,20 @@ var EventEmitter = require('events').EventEmitter;
 var inherits = require('util').inherits;
 
 exports.loadConfig = loadConfig;
+exports.resolveConfig = resolveConfig;
 exports.createApp = createApp;
 exports.Architect = Architect;
 
 // This is assumed to be used at startup and uses sync I/O as well as can
 // throw exceptions.  It loads and parses a config file.
 function loadConfig(configPath) {
-    var config = require(configPath);
-    var base = dirname(configPath);
+  var config = require(configPath);
+  var base = dirname(configPath);
+
+  resolveConfig(config, base);
+}
+
+function resolveConfig(config, base) {
     config.forEach(function (plugin, index) {
         // Shortcut where string is used for plugin without any options.
         if (typeof plugin === "string") {
@@ -34,7 +40,6 @@ function loadConfig(configPath) {
             plugin.provides = plugin.provides || [];
         }
     });
-    checkConfig(config);
     return config;
 }
 
