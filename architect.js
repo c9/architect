@@ -60,10 +60,7 @@ function checkConfig(config) {
         }
     });
 
-    checkCycles(config);
-
-    // Stamp it approved so we don't check it again.
-    config.checked = true;
+    return checkCycles(config);
 }
 
 function checkCycles(config) {
@@ -72,7 +69,8 @@ function checkCycles(config) {
         plugins.push({
             packagePath: pluginConfig.packagePath,
             provides: pluginConfig.provides.concat(),
-            consumes: pluginConfig.consumes.concat()
+            consumes: pluginConfig.consumes.concat(),
+            config: pluginConfig
         });
     });
 
@@ -80,6 +78,7 @@ function checkCycles(config) {
         hub: true
     };
     var changed = true;
+    var sorted = [];
 
     while(plugins.length && changed) {
         changed = false;
@@ -104,6 +103,7 @@ function checkCycles(config) {
             plugin.provides.forEach(function(service) {
                 resolved[service] = true;
             });
+            sorted.push(plugin.config);
             changed = true;
         });
     }
@@ -113,6 +113,8 @@ function checkCycles(config) {
         console.error("Resovled services:", resolved);
         throw new Error("Could not resolve dependencies");
     }
+
+    return sorted;
 }
 
 function Architect(config) {
@@ -126,63 +128,44 @@ function Architect(config) {
         }
     };
 
-    // Check the config if it's not already checked.
-    if (!config.checked) {
-        try {
-            checkConfig(config)
-        } catch (err) {
-            app.emit("error", err);
-        }
+    // Check the config
+    try {
+        var sortedPlugins = checkConfig(config)
+    } catch (err) {
+        return app.emit("error", err);
     }
 
-    var running;
     var destructors = [];
 
     (function startPlugins() {
-        if (running) return;
-        running = true;
-        var pending = 0;
-        do {
-            var changed = false;
-            config.forEach(function (plugin) {
-                // Skip already-started and not-yet-ready plugins
-                if (plugin.started) return;
-                if (!plugin.consumes.every(function (name) {
-                    return services[name];
-                })) { return; }
+        var plugin = sortedPlugins.shift();
+        if (!plugin)
+            return app.emit("ready", app);
 
-                pending++;
-
-                var imports = {};
-                plugin.consumes.forEach(function (name) {
-                    imports[name] = services[name];
-                });
-                plugin.started = true;
-                plugin.setup(plugin, imports, function (err, provided) {
-                    if (err) { return app.emit("error", err); }
-                    plugin.provides.forEach(function (name) {
-                        if (!provided.hasOwnProperty(name)) {
-                            var err = new Error("Plugin failed to provide " + name + " service. " + JSON.stringify(plugin));
-                            return app.emit("error", err);
-                        }
-                        services[name] = provided[name];
-                        app.emit("service", name, services[name]);
-                        changed = true;
-                    });
-                    if (provided && provided.hasOwnProperty("onDestroy"))
-                        destructors.push(provided.onDestroy);
-
-                    pending--;
-                    app.emit("plugin", plugin);
-                    if (changed) { startPlugins(); }
-                });
+        var imports = {};
+        if (plugin.consumes) {
+            plugin.consumes.forEach(function (name) {
+                imports[name] = services[name];
             });
-        } while (changed);
-        running = false;
-        if (!pending) {
-            app.emit("ready", app);
         }
-    }());
+
+        plugin.setup(plugin, imports, function (err, provided) {
+            if (err) { return app.emit("error", err); }
+            plugin.provides.forEach(function (name) {
+                if (!provided.hasOwnProperty(name)) {
+                    var err = new Error("Plugin failed to provide " + name + " service. " + JSON.stringify(plugin));
+                    return app.emit("error", err);
+                }
+                services[name] = provided[name];
+                app.emit("service", name, services[name]);
+            });
+            if (provided && provided.hasOwnProperty("onDestroy"))
+                destructors.push(provided.onDestroy);
+
+            app.emit("plugin", plugin);
+            startPlugins();
+        });
+    })();
 
     this.destroy = function() {
         destructors.forEach(function(destroy) {
