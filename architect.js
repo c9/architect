@@ -137,7 +137,7 @@ function Architect(config) {
 
     var destructors = [];
 
-    (function startPlugins() {
+    function startPlugins() {
         var plugin = sortedPlugins.shift();
         if (!plugin)
             return app.emit("ready", app);
@@ -165,7 +165,10 @@ function Architect(config) {
             app.emit("plugin", plugin);
             startPlugins();
         });
-    })();
+    }
+
+    // Give createApp some time to subscribe to our "ready" event
+    process.nextTick(startPlugins);
 
     this.destroy = function() {
         destructors.forEach(function(destroy) {
