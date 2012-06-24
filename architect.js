@@ -26,7 +26,7 @@ function resolveConfig(config, base) {
             plugin = config[index] = { packagePath: plugin };
         }
         // The plugin is a package on the disk.  We need to load it.
-        if (plugin.hasOwnProperty("packagePath")) {
+        if (plugin.hasOwnProperty("packagePath") && !plugin.hasOwnProperty("setup")) {
             plugin.packagePath = resolvePackageSync(base, plugin.packagePath);
             var packageConf = require(plugin.packagePath);
             var defaults = packageConf.plugin || {};
@@ -36,9 +36,9 @@ function resolveConfig(config, base) {
                 }
             });
             plugin.setup = require(dirname(plugin.packagePath));
-            plugin.consumes = plugin.consumes || [];
-            plugin.provides = plugin.provides || [];
         }
+        plugin.consumes = plugin.consumes || [];
+        plugin.provides = plugin.provides || [];
     });
     return config;
 }
