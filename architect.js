@@ -195,29 +195,37 @@ Architect.prototype.getService = function(name) {
 // app.services - a hash of all the services in this app
 // app.config - the plugin config that was passed in.
 function createApp(config, callback) {
-    var app = new Architect(config);
-    if (callback) {
-        app.on("error", onError);
-        app.once("ready", onReady);
+    try {
+        var app = new Architect(config);
+        if (callback) {
+            app.on("error", onError);
+            app.once("ready", onReady);
 
-        function onError(err) {
-            app.removeListener("ready", done);
-            app.destroy();
-            done(err, app);
+            function onError(err) {
+                app.removeListener("ready", done);
+                app.destroy();
+                done(err, app);
+            }
+
+            function onReady() {
+                done(null, app);
+            }
+
+            var called = false;
+            function done(err) {
+              if (called) return;
+              called = true;
+              callback(err, app);
+            }
         }
-
-        function onReady() {
-            done(null, app);
-        }
-
-        var called = false;
-        function done(err) {
-          if (called) return;
-          called = true;
-          callback(err, app);
+        return app;
+    } catch(err) {
+        if (callback) {
+            callback(err);
+        } else {
+            throw err;
         }
     }
-    return app;
 }
 
 // Node style package resolving so that plugins' package.json can be found relative to the config file
