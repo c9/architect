@@ -180,6 +180,13 @@ function Architect(config) {
 }
 inherits(Architect, EventEmitter);
 
+Architect.prototype.getService = function(name) {
+    if (!this.services[name]) {
+        throw new Error("Service '" + name + "' not found in architect app!");
+    }
+    return this.services[name];
+}
+
 // Returns an event emitter that represents the app.  It can emit events.
 // event: ("service" name, service) emitted when a service is ready to be consumed.
 // event: ("plugin", plugin) emitted when a plugin registers.
