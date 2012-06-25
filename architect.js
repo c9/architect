@@ -65,12 +65,12 @@ function checkConfig(config) {
 
 function checkCycles(config) {
     var plugins = [];
-    config.forEach(function(pluginConfig) {
+    config.forEach(function(pluginConfig, index) {
         plugins.push({
             packagePath: pluginConfig.packagePath,
             provides: pluginConfig.provides.concat(),
             consumes: pluginConfig.consumes.concat(),
-            config: pluginConfig
+            i: index
         });
     });
 
@@ -103,7 +103,7 @@ function checkCycles(config) {
             plugin.provides.forEach(function(service) {
                 resolved[service] = true;
             });
-            sorted.push(plugin.config);
+            sorted.push(config[plugin.i]);
             changed = true;
         });
     }
