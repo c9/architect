@@ -1,10 +1,10 @@
 # Architect
 
-Architect is a simple plugin system that makes it easy to build an application out
-of reusable plugins. Each plugin instance can communicate with other plugins
-via the service system. A plugin may provide one or more services. A plugin
-may also consume one or more services. A service is basically a collection of
-functions.
+Architect is a simple but powerful Node.js architecture that makes it easy to
+build applications and scale your code via plugins. Each plugin registers
+itself with Architect, so other plugins can use its functions. Plugins can
+be maintained as NPM packages so they can be dropped in to other Architect
+apps.
 
 ## Plugin Interface
 
