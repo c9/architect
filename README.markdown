@@ -1,9 +1,9 @@
 # Architect
 
-Architect is a simple plugin system that makes is simple to build a system out
-of reusable plugins.  Each plugin instance can communicate with other plugins
-via the service system.  A plugin may provide one or more services.  A plugin
-may also consume one or more services.  A service is basically a collection of
+Architect is a simple plugin system that makes it easy to build an application out
+of reusable plugins. Each plugin instance can communicate with other plugins
+via the service system. A plugin may provide one or more services. A plugin
+may also consume one or more services. A service is basically a collection of
 functions.
 
 ## Plugin Interface
