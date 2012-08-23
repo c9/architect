@@ -1,3 +1,4 @@
+[![build status](https://secure.travis-ci.org/c9/architect.png)](http://travis-ci.org/c9/architect)
 # Architect
 
 Architect is a simple but powerful Node.js architecture that makes it easy to
