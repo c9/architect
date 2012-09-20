@@ -1,0 +1,7 @@
+{
+    "jam": {
+        "dependencies": {
+            "events": "~0.0.1"
+        }
+    }
+}
