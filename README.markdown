@@ -84,7 +84,7 @@ The architect module exposes two functions as it's main API.
 
 This function starts an architect config.  The return value is an `Architect` instance.  The optional callback will listen for both "error" and "ready" on the app object and report on which one happens first.
 
-### loadConfig(configPach)
+### loadConfig(configPath)
 
 This is a sync function that loads a config file and parses all the plugins into a proper config object for use with `createApp`.  While this uses sync I/O all steps along the way are memoized and I/O only occurs on the first invocation.  It's safe to call this in an event loop provided a small set of configPaths are used.
 
