@@ -12,7 +12,7 @@ var exports = {};
 if (typeof module === "object") (function () {
     var dirname = require('path').dirname;
     var resolve = require('path').resolve;
-    var existsSync = require('path').existsSync;
+    var existsSync = require('fs').existsSync || require('path').existsSync;
     var realpathSync = require('fs').realpathSync;
     var packagePathCache = {};
 
@@ -36,20 +36,40 @@ if (typeof module === "object") (function () {
             }
             // The plugin is a package on the disk.  We need to load it.
             if (plugin.hasOwnProperty("packagePath") && !plugin.hasOwnProperty("setup")) {
-                plugin.packagePath = resolvePackageSync(base, plugin.packagePath);
-                var packageConf = require(plugin.packagePath);
-                var defaults = packageConf.plugin || {};
+                var defaults = resolveModule(base, plugin.packagePath);
                 Object.keys(defaults).forEach(function (key) {
                     if (!plugin.hasOwnProperty(key)) {
                         plugin[key] = defaults[key];
                     }
                 });
-                plugin.setup = require(dirname(plugin.packagePath));
+                plugin.packagePath = defaults.packagePath;
+                plugin.setup = require(plugin.packagePath);
             }
-            plugin.consumes = plugin.consumes || [];
-            plugin.provides = plugin.provides || [];
         });
         return config;
+    }
+
+    // Loads a module, getting metadata from either it's package.json or export
+    // object.
+    function resolveModule(base, modulePath) {
+        var packagePath;
+        try {
+            packagePath = resolvePackageSync(base, modulePath + "/package.json");
+        }
+        catch (err) {
+            if (err.code !== "ENOENT") throw err;
+        }
+        var metadata = packagePath && require(packagePath).plugin || {};
+        if (packagePath) {
+            modulePath = dirname(packagePath);
+        } else {
+            modulePath = resolvePackageSync(base, modulePath);
+        }
+        var module = require(modulePath);
+        metadata.provides = metadata.provides || module.provides || [];
+        metadata.consumes = metadata.consumes || module.consumes || [];
+        metadata.packagePath = modulePath;
+        return metadata;
     }
 
     // Node style package resolving so that plugins' package.json can be found relative to the config file
@@ -57,16 +77,16 @@ if (typeof module === "object") (function () {
     // This throws, make sure to wrap in try..catch
     function resolvePackageSync(base, packagePath) {
         var originalBase = base;
-        if (!packagePathCache.hasOwnProperty(base)) {
+        if (!(base in packagePathCache)) {
             packagePathCache[base] = {};
         }
         var cache = packagePathCache[base];
-        if (cache.hasOwnProperty(packagePath)) {
+        if (packagePath in cache) {
             return cache[packagePath];
         }
         var newPath;
         if (packagePath[0] === "." || packagePath[0] === "/") {
-            newPath = resolve(base, packagePath, "package.json");
+            newPath = resolve(base, packagePath);
             if (existsSync(newPath)) {
                 newPath = realpathSync(newPath);
                 cache[packagePath] = newPath;
@@ -75,7 +95,7 @@ if (typeof module === "object") (function () {
         }
         else {
             while (base) {
-                newPath = resolve(base, "node_modules", packagePath, "package.json");
+                newPath = resolve(base, "node_modules", packagePath);
                 if (existsSync(newPath)) {
                     newPath = realpathSync(newPath);
                     cache[packagePath] = newPath;
