@@ -1,6 +1,6 @@
 
 ( // Module boilerplate to support node.js and AMD.
-  (typeof module === "object" && function (m) { module.exports = m(require('events')); }) ||
+  (typeof module !== "undefined" && function (m) { module.exports = m(require('events')); }) ||
   (typeof define === "function" && function (m) { define(["events"], m); })
 )(function (events) {
 "use strict";
