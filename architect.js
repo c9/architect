@@ -1,4 +1,3 @@
-
 ( // Module boilerplate to support node.js and AMD.
   (typeof module !== "undefined" && function (m) { module.exports = m(require('events')); }) ||
   (typeof define === "function" && function (m) { define(["events"], m); })
@@ -219,6 +218,10 @@ function checkCycles(config) {
     }
 
     if (plugins.length) {
+        plugins.forEach(function(plugin) {
+            delete plugin.config;
+        });
+
         console.error("Could not resolve dependencies of these plugins:", plugins);
         console.error("Resovled services:", resolved);
         throw new Error("Could not resolve dependencies");
