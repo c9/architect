@@ -13,6 +13,8 @@ if (typeof module === "object") (function () {
     var resolve = require('path').resolve;
     var existsSync = require('fs').existsSync || require('path').existsSync;
     var realpathSync = require('fs').realpathSync;
+    var exists = require('fs').exists || require('path').exists;
+    var realpath = require('fs').realpath;
     var packagePathCache = {};
 
     exports.loadConfig = loadConfig;
@@ -20,14 +22,21 @@ if (typeof module === "object") (function () {
 
     // This is assumed to be used at startup and uses sync I/O as well as can
     // throw exceptions.  It loads and parses a config file.
-    function loadConfig(configPath) {
+    function loadConfig(configPath, callback) {
       var config = require(configPath);
       var base = dirname(configPath);
 
-      return resolveConfig(config, base);
+      return resolveConfig(config, base, callback);
     }
 
-    function resolveConfig(config, base) {
+    function resolveConfig(config, base, callback) {
+        if (!callback)
+            return resolveConfigSync(config, base);
+        else
+            resolveConfigAsync(config, base, callback);
+    }
+
+    function resolveConfigSync(config, base) {
         config.forEach(function (plugin, index) {
             // Shortcut where string is used for plugin without any options.
             if (typeof plugin === "string") {
@@ -35,7 +44,7 @@ if (typeof module === "object") (function () {
             }
             // The plugin is a package on the disk.  We need to load it.
             if (plugin.hasOwnProperty("packagePath") && !plugin.hasOwnProperty("setup")) {
-                var defaults = resolveModule(base, plugin.packagePath);
+                var defaults = resolveModuleSync(base, plugin.packagePath);
                 Object.keys(defaults).forEach(function (key) {
                     if (!plugin.hasOwnProperty(key)) {
                         plugin[key] = defaults[key];
@@ -48,9 +57,49 @@ if (typeof module === "object") (function () {
         return config;
     }
 
+    function resolveConfigAsync(config, base, callback) {
+        function resolveNext(i) {
+            if (i >= config.length) {
+                return callback(null, config);
+            }
+
+            var plugin = config[i];
+
+            // Shortcut where string is used for plugin without any options.
+            if (typeof plugin === "string") {
+                plugin = config[i] = { packagePath: plugin };
+            }
+            // The plugin is a package on the disk.  We need to load it.
+            if (plugin.hasOwnProperty("packagePath") && !plugin.hasOwnProperty("setup")) {
+                resolveModule(base, plugin.packagePath, function(err, defaults) {
+                    if (err) return callback(err);
+
+                    Object.keys(defaults).forEach(function (key) {
+                        if (!plugin.hasOwnProperty(key)) {
+                            plugin[key] = defaults[key];
+                        }
+                    });
+                    plugin.packagePath = defaults.packagePath;
+                    try {
+                        plugin.setup = require(plugin.packagePath);
+                    } catch(e) {
+                        return callback(e);
+                    }
+
+                    return resolveNext(++i);
+                });
+                return;
+            }
+
+            return resolveNext(++i);
+        }
+
+        resolveNext(0);
+    }
+
     // Loads a module, getting metadata from either it's package.json or export
     // object.
-    function resolveModule(base, modulePath) {
+    function resolveModuleSync(base, modulePath) {
         var packagePath;
         try {
             packagePath = resolvePackageSync(base, modulePath + "/package.json");
@@ -69,6 +118,41 @@ if (typeof module === "object") (function () {
         metadata.consumes = metadata.consumes || module.consumes || [];
         metadata.packagePath = modulePath;
         return metadata;
+    }
+
+    // Loads a module, getting metadata from either it's package.json or export
+    // object.
+    function resolveModule(base, modulePath, callback) {
+        resolvePackage(base, modulePath + "/package.json", function(err, packagePath) {
+            if (err && err.code !== "ENOENT") return callback(err);
+            var metadata = {};
+            try {
+                metadata = packagePath && require(packagePath).plugin || {};
+            } catch(e) {
+                return callback(e);
+            }
+
+            (function(next) {
+                if (packagePath) {
+                    next(null, dirname(packagePath));
+                } else {
+                    resolvePackage(base, modulePath, next);
+                }
+            })(function(err, modulePath) {
+                if (err) return callback(err);
+
+                var module;
+                try {
+                    module = require(modulePath);
+                } catch(e) {
+                    return callback(e);
+                }
+                metadata.provides = metadata.provides || module.provides || [];
+                metadata.consumes = metadata.consumes || module.consumes || [];
+                metadata.packagePath = modulePath;
+                callback(null, metadata);
+            });
+        });
     }
 
     // Node style package resolving so that plugins' package.json can be found relative to the config file
@@ -107,6 +191,60 @@ if (typeof module === "object") (function () {
         err.code = "ENOENT";
         throw err;
     }
+
+    function resolvePackage(base, packagePath, callback) {
+        var originalBase = base;
+        if (!packagePathCache.hasOwnProperty(base)) {
+            packagePathCache[base] = {};
+        }
+        var cache = packagePathCache[base];
+        if (cache.hasOwnProperty(packagePath)) {
+            return callback(null, cache[packagePath]);
+        }
+        if (packagePath[0] === "." || packagePath[0] === "/") {
+            var newPath = resolve(base, packagePath);
+            exists(newPath, function(exists) {
+                if (exists) {
+                    realpath(newPath, function(err, newPath) {
+                        if (err) return callback(err);
+
+                        cache[packagePath] = newPath;
+                        return callback(null, newPath);
+                    });
+                } else {
+                    var err = new Error("Can't find '" + packagePath + "' relative to '" + originalBase + "'");
+                    err.code = "ENOENT";
+                    return callback(err);
+                }
+            });
+        }
+        else {
+            tryNext(base);
+        }
+
+        function tryNext(base) {
+            if (!base) {
+                var err = new Error("Can't find '" + packagePath + "' relative to '" + originalBase + "'");
+                err.code = "ENOENT";
+                return callback(err);
+            }
+
+            var newPath = resolve(base, "node_modules", packagePath);
+            exists(newPath, function(exists) {
+                if (exists) {
+                    realpath(newPath, function(err, newPath) {
+                        if (err) return callback(err);
+
+                        cache[packagePath] = newPath;
+                        return callback(null, newPath);
+                    });
+                } else {
+                    tryNext(base.substr(0, base.lastIndexOf("/")));
+                }
+            });
+        }
+    }
+
 
 }());
 
