@@ -199,7 +199,7 @@ if (typeof module === "object") (function () {
         }
         var cache = packagePathCache[base];
         if (cache.hasOwnProperty(packagePath)) {
-            return cache[packagePath];
+            return callback(null, cache[packagePath]);
         }
         if (packagePath[0] === "." || packagePath[0] === "/") {
             var newPath = resolve(base, packagePath);
