@@ -184,7 +184,7 @@ if (typeof module === "object") (function () {
                     cache[packagePath] = newPath;
                     return newPath;
                 }
-                base = base.substr(0, base.lastIndexOf("/"));
+                base = resolve(base, '..');
             }
         }
         var err = new Error("Can't find '" + packagePath + "' relative to '" + originalBase + "'");
@@ -239,7 +239,7 @@ if (typeof module === "object") (function () {
                         return callback(null, newPath);
                     });
                 } else {
-                    tryNext(base.substr(0, base.lastIndexOf("/")));
+                    tryNext(resolve(base, '..'));
                 }
             });
         }
