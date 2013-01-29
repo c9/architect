@@ -408,6 +408,10 @@ function Architect(config) {
                     return app.emit("error", err);
                 }
                 services[name] = provided[name];
+                
+                provided[name].name = name;
+                provided[name].imports = imports;
+                
                 app.emit("service", name, services[name]);
             });
             if (provided && provided.hasOwnProperty("onDestroy"))
