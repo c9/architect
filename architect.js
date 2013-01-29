@@ -410,7 +410,6 @@ function Architect(config) {
                 services[name] = provided[name];
                 
                 provided[name].name = name;
-                provided[name].imports = imports;
                 
                 app.emit("service", name, services[name]);
             });
