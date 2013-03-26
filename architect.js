@@ -400,7 +400,13 @@ function Architect(config) {
             });
         }
 
-        plugin.setup(plugin, imports, function (err, provided) {
+        try {
+            plugin.setup(plugin, imports, register);
+        } catch(e) {
+            return app.emit("error", e);
+        }
+        
+        function register(err, provided) {
             if (err) { return app.emit("error", err); }
             plugin.provides.forEach(function (name) {
                 if (!provided.hasOwnProperty(name)) {
@@ -415,8 +421,8 @@ function Architect(config) {
                 destructors.push(provided.onDestroy);
 
             app.emit("plugin", plugin);
-            startPlugins();
-        });
+            process.nextTick(startPlugins);
+        }
     }
 
     // Give createApp some time to subscribe to our "ready" event
