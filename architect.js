@@ -421,7 +421,7 @@ function Architect(config) {
                 destructors.push(provided.onDestroy);
 
             app.emit("plugin", plugin);
-            process.nextTick(startPlugins);
+            startPlugins();
         }
     }
 
