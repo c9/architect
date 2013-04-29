@@ -239,7 +239,11 @@ if (typeof module === "object") (function () {
                         return callback(null, newPath);
                     });
                 } else {
-                    tryNext(resolve(base, '..'));
+                    var nextBase = resolve(base, '..');
+                    if (nextBase === base)
+                        tryNext(null);
+                    else
+                        tryNext(nextBase);
                 }
             });
         }
