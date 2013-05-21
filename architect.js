@@ -124,18 +124,26 @@ if (typeof module === "object") (function () {
     // object.
     function resolveModule(base, modulePath, callback) {
         resolvePackage(base, modulePath + "/package.json", function(err, packagePath) {
-            if (err && err.code !== "ENOENT") return callback(err);
+            //if (err && err.code !== "ENOENT") return callback(err);
+
             var metadata = {};
-            try {
-                metadata = packagePath && require(packagePath).plugin || {};
-            } catch(e) {
-                return callback(e);
+            if (!err) {
+                try {
+                    metadata = packagePath && require(packagePath).plugin || {};
+                } catch(e) {
+                    return callback(e);
+                }
             }
 
             (function(next) {
-                if (packagePath) {
+                if (err) {
+                    //@todo Fabian what is a better way?
+                    resolvePackage(base, modulePath + ".js", next);
+                }
+                else if (packagePath) {
                     next(null, dirname(packagePath));
-                } else {
+                } 
+                else {
                     resolvePackage(base, modulePath, next);
                 }
             })(function(err, modulePath) {
@@ -147,6 +155,7 @@ if (typeof module === "object") (function () {
                 } catch(e) {
                     return callback(e);
                 }
+
                 metadata.provides = metadata.provides || module.provides || [];
                 metadata.consumes = metadata.consumes || module.consumes || [];
                 metadata.packagePath = modulePath;
@@ -223,7 +232,7 @@ if (typeof module === "object") (function () {
         }
 
         function tryNext(base) {
-            if (!base) {
+            if (base == "/") {
                 var err = new Error("Can't find '" + packagePath + "' relative to '" + originalBase + "'");
                 err.code = "ENOENT";
                 return callback(err);
@@ -263,7 +272,12 @@ else (function () {
         });
     }
 
-    function resolveConfig(config, callback) {
+    function resolveConfig(config, base, callback) {
+        if (typeof base == "function") {
+            callback = base;
+            base     = "";
+        }
+        
         var paths = [], pluginIndexes = {};
         config.forEach(function (plugin, index) {
             // Shortcut where string is used for plugin without any options.
@@ -272,7 +286,7 @@ else (function () {
             }
             // The plugin is a package over the network.  We need to load it.
             if (plugin.hasOwnProperty("packagePath") && !plugin.hasOwnProperty("setup")) {
-                paths.push(plugin.packagePath);
+                paths.push((base || "") + plugin.packagePath);
                 pluginIndexes[plugin.packagePath] = index;
             }
         });
@@ -360,12 +374,29 @@ function checkCycles(config) {
     }
 
     if (plugins.length) {
+        var unresolved = {};
         plugins.forEach(function(plugin) {
             delete plugin.config;
+            plugin.consumes.forEach(function(name) {
+                if (unresolved[name] == false)
+                    return;
+                if (!unresolved[name])
+                    unresolved[name] = [];
+                unresolved[name].push(plugin.packagePath);
+            });
+            plugin.provides.forEach(function(name) {
+                unresolved[name] = false;
+            });
+        });
+        
+        Object.keys(unresolved).forEach(function(name) {
+            if (unresolved[name] == false)
+                delete unresolved[name];
         });
 
         console.error("Could not resolve dependencies of these plugins:", plugins);
-        console.error("Resovled services:", resolved);
+        console.error("Resovled services:", Object.keys(resolved));
+        console.error("Missing services:", unresolved);
         throw new Error("Could not resolve dependencies");
     }
 
@@ -384,11 +415,7 @@ function Architect(config) {
     };
 
     // Check the config
-    try {
-        var sortedPlugins = checkConfig(config);
-    } catch (err) {
-        return app.emit("error", err);
-    }
+    var sortedPlugins = checkConfig(config);
 
     var destructors = [];
 
@@ -418,7 +445,10 @@ function Architect(config) {
                     return app.emit("error", err);
                 }
                 services[name] = provided[name];
-                provided[name].name = name;
+                
+                if (typeof provided[name] != "function")
+                    provided[name].name = name;
+
                 app.emit("service", name, services[name]);
             });
             if (provided && provided.hasOwnProperty("onDestroy"))
@@ -426,7 +456,7 @@ function Architect(config) {
 
             app.emit("plugin", plugin);
             startPlugins();
-        }
+        });
     }
 
     // Give createApp some time to subscribe to our "ready" event
