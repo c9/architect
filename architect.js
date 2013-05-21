@@ -360,12 +360,29 @@ function checkCycles(config) {
     }
 
     if (plugins.length) {
+        var unresolved = {};
         plugins.forEach(function(plugin) {
             delete plugin.config;
+            plugin.consumes.forEach(function(name) {
+                if (unresolved[name] == false)
+                    return;
+                if (!unresolved[name])
+                    unresolved[name] = [];
+                unresolved[name].push(plugin.packagePath);
+            });
+            plugin.provides.forEach(function(name) {
+                unresolved[name] = false;
+            });
+        });
+        
+        Object.keys(unresolved).forEach(function(name) {
+            if (unresolved[name] == false)
+                delete unresolved[name];
         });
 
         console.error("Could not resolve dependencies of these plugins:", plugins);
-        console.error("Resovled services:", resolved);
+        console.error("Resovled services:", Object.keys(resolved));
+        console.error("Missing services:", unresolved);
         throw new Error("Could not resolve dependencies");
     }
 
@@ -419,6 +436,9 @@ function Architect(config) {
                 }
                 services[name] = provided[name];
                 provided[name].name = name;
+                if (typeof provided[name] != "function")
+                    provided[name].name = name;
+
                 app.emit("service", name, services[name]);
             });
             if (provided && provided.hasOwnProperty("onDestroy"))
