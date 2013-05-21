@@ -436,6 +436,9 @@ function Architect(config) {
                 }
                 services[name] = provided[name];
                 provided[name].name = name;
+                if (typeof provided[name] != "function")
+                    provided[name].name = name;
+
                 app.emit("service", name, services[name]);
             });
             if (provided && provided.hasOwnProperty("onDestroy"))
