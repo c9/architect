@@ -1,3 +1,4 @@
+/*global require console process setTimeout*/
 ( // Module boilerplate to support node.js and AMD.
   (typeof module !== "undefined" && function (m) { module.exports = m(require('events')); }) ||
   (typeof define === "function" && function (m) { define(["events"], m); })
@@ -142,7 +143,7 @@ if (typeof module === "object") (function () {
                 }
                 else if (packagePath) {
                     next(null, dirname(packagePath));
-                } 
+                }
                 else {
                     resolvePackage(base, modulePath, next);
                 }
@@ -456,7 +457,7 @@ function Architect(config) {
 
             app.emit("plugin", plugin);
             startPlugins();
-        });
+        }
     }
 
     // Give createApp some time to subscribe to our "ready" event
