@@ -278,7 +278,7 @@ else (function () {
             callback = base;
             base     = "";
         }
-        
+
         var paths = [], pluginIndexes = {};
         config.forEach(function (plugin, index) {
             // Shortcut where string is used for plugin without any options.
@@ -389,7 +389,7 @@ function checkCycles(config) {
                 unresolved[name] = false;
             });
         });
-        
+
         Object.keys(unresolved).forEach(function(name) {
             if (unresolved[name] == false)
                 delete unresolved[name];
@@ -406,8 +406,9 @@ function checkCycles(config) {
 
 function Architect(config) {
     var app = this;
-    app.config = config;
-    var services = app.services = {
+    app.config = [];
+    app.destructors = [];
+    app.services = {
         hub: {
             on: function (name, callback) {
                 app.on(name, callback);
@@ -415,63 +416,125 @@ function Architect(config) {
         }
     };
 
-    // Check the config
-    var sortedPlugins = checkConfig(config);
+    // Give createApp some time to subscribe to our "ready" event
+    (typeof process === "object" ? process.nextTick : setTimeout)(function() {
+        app.loadPlugins(config, function(err) {
+            if (err) {
+                throw err;
+            }
+            app.emit("ready", app);
+        });
+    });
+}
 
-    var destructors = [];
+Architect.prototype = Object.create(EventEmitter.prototype, {constructor:{value:Architect}});
 
-    function startPlugins() {
-        var plugin = sortedPlugins.shift();
-        if (!plugin)
-            return app.emit("ready", app);
+Architect.prototype.destroy = function() {
+    var app = this;
 
-        var imports = {};
-        if (plugin.consumes) {
-            plugin.consumes.forEach(function (name) {
-                imports[name] = services[name];
-            });
-        }
+    app.destructors.forEach(function(destroy) {
+        destroy();
+    });
 
-        try {
-            plugin.setup(plugin, imports, register);
-        } catch(e) {
-            return app.emit("error", e);
-        }
-        
-        function register(err, provided) {
-            if (err) { return app.emit("error", err); }
-            plugin.provides.forEach(function (name) {
-                if (!provided.hasOwnProperty(name)) {
-                    var err = new Error("Plugin failed to provide " + name + " service. " + JSON.stringify(plugin));
-                    return app.emit("error", err);
-                }
-                services[name] = provided[name];
-                
-                if (typeof provided[name] != "function")
-                    provided[name].name = name;
+    app.destructors = [];
+};
 
-                app.emit("service", name, services[name]);
-            });
-            if (provided && provided.hasOwnProperty("onDestroy"))
-                destructors.push(provided.onDestroy);
+Architect.prototype.loadPlugins = function(config, callback) {
+    var app = this;
 
-            app.emit("plugin", plugin);
-            startPlugins();
-        }
+    var sortedConfig;
+    try {
+        sortedConfig = checkConfig(config.concat(app.config));
+    }
+    catch(ex) {
+        return callback(ex);
     }
 
-    // Give createApp some time to subscribe to our "ready" event
-    (typeof process === "object" ? process.nextTick : setTimeout)(startPlugins);
+    // prevent double loading of plugins
+    sortedConfig = sortedConfig.filter(function(c) {
+        return config.indexOf(c) > -1;
+    });
 
-    this.destroy = function() {
-        destructors.forEach(function(destroy) {
-            destroy();
+    var p;
+    function next(err) {
+        if (err) {
+            return callback(err);
+        }
+        if (p && app.config.indexOf(p) === -1) {
+            app.config.push(p);
+        }
+
+        p = sortedConfig.shift();
+        if (!p) {
+            return callback();
+        }
+        app.registerPlugin(p, next);
+    }
+    next();
+};
+
+/**
+ * Register a plugin in the service
+ */
+Architect.prototype.registerPlugin = function(plugin, next) {
+    var app = this;
+    var services = app.services;
+
+    var imports = {};
+    if (plugin.consumes) {
+        plugin.consumes.forEach(function (name) {
+            imports[name] = services[name];
         });
+    }
 
-        destructors = [];
-    };
-}
-Architect.prototype = Object.create(EventEmitter.prototype, {constructor:{value:Architect}});
+    try {
+        plugin.setup(plugin, imports, register);
+    } catch(e) {
+        return app.emit("error", e);
+    }
+
+    function register(err, provided) {
+        if (err) {
+            return app.emit("error", err);
+        }
+
+        plugin.provides.forEach(function (name) {
+            if (!provided.hasOwnProperty(name)) {
+                var err = new Error("Plugin failed to provide " + name + " service. " + JSON.stringify(plugin));
+                return app.emit("error", err);
+            }
+            services[name] = provided[name];
+
+            if (typeof provided[name] != "function")
+                provided[name].name = name;
+
+            app.emit("service", name, services[name]);
+        });
+        if (provided && provided.hasOwnProperty("onDestroy")) {
+            app.destructors.push(provided.onDestroy);
+        }
+
+        plugin.destroy = function() {
+            if (plugin.provides.length) {
+                // @todo, make it possible if all consuming plugins are also dead
+                var err = new Error("Plugins that provide services cannot be destroyed. " + JSON.stringify(plugin));
+                return app.emit("error", err);
+            }
+
+            if (provided && provided.hasOwnProperty("onDestroy")) {
+                app.destructors.splice(app.destructors.indexOf(provided.onDestroy), 1);
+                provided.onDestroy();
+            }
+
+            // delete from config
+            app.config.splice(app.config.indexOf(plugin), 1);
+            app.emit("destroyed", plugin);
+        };
+
+        app.emit("plugin", plugin);
+        next();
+    }
+};
 
 Architect.prototype.getService = function(name) {
     if (!this.services[name]) {
