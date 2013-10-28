@@ -396,7 +396,7 @@ function checkCycles(config) {
         });
 
         console.error("Could not resolve dependencies of these plugins:", plugins);
-        console.error("Resovled services:", Object.keys(resolved));
+        console.error("Resolved services:", Object.keys(resolved));
         console.error("Missing services:", unresolved);
         throw new Error("Could not resolve dependencies");
     }
