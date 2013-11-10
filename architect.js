@@ -177,7 +177,7 @@ if (typeof module === "object") (function () {
         if (packagePath in cache) {
             return cache[packagePath];
         }
-        var newPath;
+        var newPath, newBase;
         if (packagePath[0] === "." || packagePath[0] === "/") {
             newPath = resolve(base, packagePath);
             if (existsSync(newPath)) {
@@ -194,7 +194,11 @@ if (typeof module === "object") (function () {
                     cache[packagePath] = newPath;
                     return newPath;
                 }
-                base = resolve(base, '..');
+                newBase = resolve(base, '..');
+                if (base === newBase) {
+                    break;
+                }
+                base = newBase;
             }
         }
         var err = new Error("Can't find '" + packagePath + "' relative to '" + originalBase + "'");
