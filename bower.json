@@ -1,7 +1,7 @@
 {
     "name": "architect",
     "description": "A Simple yet powerful plugin system for node applications",
-    "version": "0.1.6",
+    "version": "0.1.12",
     "dependencies": {
         "juliangruber/events": "*"
     },
