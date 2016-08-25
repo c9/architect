@@ -1,4 +1,3 @@
-/*global require console process setTimeout*/
 ( // Module boilerplate to support node.js and AMD.
   (typeof module !== "undefined" && function (m) { module.exports = m(require('events')); }) ||
   (typeof define === "function" && function (m) { define(["events"], m); })
@@ -7,6 +6,8 @@
 var EventEmitter = events.EventEmitter;
 
 var exports = {};
+
+var DEBUG = typeof location != "undefined" && location.href.match(/debug=[123]/) ? true : false;
 
 // Only define Node-style usage using sync I/O if in node.
 if (typeof module === "object") (function () {
@@ -143,7 +144,7 @@ if (typeof module === "object") (function () {
                 }
                 else if (packagePath) {
                     next(null, dirname(packagePath));
-                }
+                } 
                 else {
                     resolvePackage(base, modulePath, next);
                 }
@@ -177,9 +178,12 @@ if (typeof module === "object") (function () {
         if (packagePath in cache) {
             return cache[packagePath];
         }
-        var newPath, newBase;
+        var newPath;
         if (packagePath[0] === "." || packagePath[0] === "/") {
             newPath = resolve(base, packagePath);
+            if (!existsSync(newPath)) {
+                newPath = newPath + ".js";
+            }
             if (existsSync(newPath)) {
                 newPath = realpathSync(newPath);
                 cache[packagePath] = newPath;
@@ -194,11 +198,7 @@ if (typeof module === "object") (function () {
                     cache[packagePath] = newPath;
                     return newPath;
                 }
-                newBase = resolve(base, '..');
-                if (base === newBase) {
-                    break;
-                }
-                base = newBase;
+                base = resolve(base, '..');
             }
         }
         var err = new Error("Can't find '" + packagePath + "' relative to '" + originalBase + "'");
@@ -255,7 +255,7 @@ if (typeof module === "object") (function () {
                 } else {
                     var nextBase = resolve(base, '..');
                     if (nextBase === base)
-                        tryNext(null);
+                        tryNext("/"); // for windows
                     else
                         tryNext(nextBase);
                 }
@@ -277,12 +277,10 @@ else (function () {
         });
     }
 
-    function resolveConfig(config, base, callback) {
-        if (typeof base == "function") {
-            callback = base;
-            base     = "";
-        }
-
+    function resolveConfig(config, base, callback, errback) {
+        if (typeof base == "function")
+            return resolveConfig(config, "", arguments[1], arguments[2]);
+        
         var paths = [], pluginIndexes = {};
         config.forEach(function (plugin, index) {
             // Shortcut where string is used for plugin without any options.
@@ -306,7 +304,7 @@ else (function () {
                 plugin.consumes = module.consumes || [];
             });
             callback(null, config);
-        });
+        }, errback);
     }
 }());
 
@@ -314,7 +312,7 @@ exports.createApp = createApp;
 exports.Architect = Architect;
 
 // Check a plugin config list for bad dependencies and throw on error
-function checkConfig(config) {
+function checkConfig(config, lookup) {
 
     // Check for the required fields in each plugin.
     config.forEach(function (plugin) {
@@ -330,10 +328,10 @@ function checkConfig(config) {
         }
     });
 
-    return checkCycles(config);
+    return checkCycles(config, lookup);
 }
 
-function checkCycles(config) {
+function checkCycles(config, lookup) {
     var plugins = [];
     config.forEach(function(pluginConfig, index) {
         plugins.push({
@@ -359,7 +357,7 @@ function checkCycles(config) {
             var resolvedAll = true;
             for (var i=0; i<consumes.length; i++) {
                 var service = consumes[i];
-                if (!resolved[service]) {
+                if (!resolved[service] && (!lookup || !lookup(service))) {
                     resolvedAll = false;
                 } else {
                     plugin.consumes.splice(plugin.consumes.indexOf(service), 1);
@@ -383,7 +381,7 @@ function checkCycles(config) {
         plugins.forEach(function(plugin) {
             delete plugin.config;
             plugin.consumes.forEach(function(name) {
-                if (unresolved[name] == false)
+                if (unresolved[name] === false)
                     return;
                 if (!unresolved[name])
                     unresolved[name] = [];
@@ -393,16 +391,21 @@ function checkCycles(config) {
                 unresolved[name] = false;
             });
         });
-
+        
         Object.keys(unresolved).forEach(function(name) {
-            if (unresolved[name] == false)
+            if (unresolved[name] === false)
                 delete unresolved[name];
         });
 
-        console.error("Could not resolve dependencies of these plugins:", plugins);
-        console.error("Resolved services:", Object.keys(resolved));
-        console.error("Missing services:", unresolved);
-        throw new Error("Could not resolve dependencies");
+        var unresolvedList = Object.keys(unresolved);
+        var resolvedList = Object.keys(resolved);
+        var err  = new Error("Could not resolve dependencies\n"
+            + (unresolvedList.length ? "Missing services: " + unresolvedList
+            : "Config contains cyclic dependencies" // TODO print cycles
+            ));
+        err.unresolved = unresolvedList;
+        err.resolved = resolvedList;
+        throw err;
     }
 
     return sorted;
@@ -410,9 +413,12 @@ function checkCycles(config) {
 
 function Architect(config) {
     var app = this;
-    app.config = [];
-    app.destructors = [];
-    app.services = {
+    app.config = config;
+    app.packages = {};
+    app.pluginToPackage = {};
+    
+    var isAdditionalMode;
+    var services = app.services = {
         hub: {
             on: function (name, callback) {
                 app.on(name, callback);
@@ -420,125 +426,125 @@ function Architect(config) {
         }
     };
 
+    // Check the config
+    var sortedPlugins = checkConfig(config);
+
+    var destructors = [];
+    var recur = 0, callnext, ready;
+    function startPlugins(additional) {
+        var plugin = sortedPlugins.shift();
+        if (!plugin) {
+            ready = true;
+            return app.emit(additional ? "ready-additional" : "ready", app);
+        }
+
+        var imports = {};
+        if (plugin.consumes) {
+            plugin.consumes.forEach(function (name) {
+                imports[name] = services[name];
+            });
+        }
+        
+        var m = /^plugins\/([^\/]+)|\/plugins\/[^\/]+\/([^\/]+)/.exec(plugin.packagePath);
+        var packageName = m && (m[1] || m[2]);
+        if (!app.packages[packageName]) app.packages[packageName] = [];
+        
+        if (DEBUG) {
+            recur++;
+            plugin.setup(plugin, imports, register);
+            
+            while (callnext && recur <= 1) {
+                callnext = false;
+                startPlugins(additional);
+            }
+            recur--;
+        }
+        else {
+            try {
+                recur++;
+                plugin.setup(plugin, imports, register);
+            } catch (e) {
+                e.plugin = plugin;
+                app.emit("error", e);
+                throw e;
+            } finally {
+                while (callnext && recur <= 1) {
+                    callnext = false;
+                    startPlugins(additional);
+                }
+                recur--;
+            }
+        }
+        
+        function register(err, provided) {
+            if (err) { return app.emit("error", err); }
+            plugin.provides.forEach(function (name) {
+                if (!provided.hasOwnProperty(name)) {
+                    var err = new Error("Plugin failed to provide " + name + " service. " + JSON.stringify(plugin));
+                    err.plugin = plugin;
+                    return app.emit("error", err);
+                }
+                services[name] = provided[name];
+                app.pluginToPackage[name] = {
+                    path: plugin.packagePath,
+                    package: packageName,
+                    version: plugin.version,
+                    isAdditionalMode: isAdditionalMode
+                };
+                app.packages[packageName].push(name);
+                
+                app.emit("service", name, services[name], plugin);
+            });
+            if (provided && provided.hasOwnProperty("onDestroy"))
+                destructors.push(provided.onDestroy);
+
+            app.emit("plugin", plugin);
+            
+            if (recur) return (callnext = true);
+            startPlugins(additional);
+        }
+    }
+
     // Give createApp some time to subscribe to our "ready" event
-    (typeof process === "object" ? process.nextTick : setTimeout)(function() {
-        app.loadPlugins(config, function(err) {
-            if (err) {
-                throw err;
+    (typeof process === "object" ? process.nextTick : setTimeout)(startPlugins);
+
+    this.loadAdditionalPlugins = function(additionalConfig, callback){
+        isAdditionalMode = true;
+        
+        exports.resolveConfig(additionalConfig, function (err, additionalConfig) {
+            if (err) return callback(err);
+            
+            app.once(ready ? "ready-additional" : "ready", function(app){
+                callback(null, app);
+            }); // What about error state?
+            
+            // Check the config - hopefully this works
+            var _sortedPlugins = checkConfig(additionalConfig, function(name){
+                return services[name];
+            });
+            
+            if (ready) {
+                sortedPlugins = _sortedPlugins;
+                // Start Loading additional plugins
+                startPlugins(true);
             }
-            app.emit("ready", app);
+            else {
+                _sortedPlugins.forEach(function(item){
+                    sortedPlugins.push(item);
+                });
+            }
         });
-    });
+    }
+
+    this.destroy = function() {
+        destructors.forEach(function(destroy) {
+            destroy();
+        });
+
+        destructors = [];
+    };
 }
-
 Architect.prototype = Object.create(EventEmitter.prototype, {constructor:{value:Architect}});
-
-Architect.prototype.destroy = function() {
-    var app = this;
-
-    app.destructors.forEach(function(destroy) {
-        destroy();
-    });
-
-    app.destructors = [];
-};
-
-Architect.prototype.loadPlugins = function(config, callback) {
-    var app = this;
-
-    var sortedConfig;
-    try {
-        sortedConfig = checkConfig(config.concat(app.config));
-    }
-    catch(ex) {
-        return callback(ex);
-    }
-
-    // prevent double loading of plugins
-    sortedConfig = sortedConfig.filter(function(c) {
-        return config.indexOf(c) > -1;
-    });
-
-    var p;
-    function next(err) {
-        if (err) {
-            return callback(err);
-        }
-        if (p && app.config.indexOf(p) === -1) {
-            app.config.push(p);
-        }
-
-        p = sortedConfig.shift();
-        if (!p) {
-            return callback();
-        }
-        app.registerPlugin(p, next);
-    }
-    next();
-};
-
-/**
- * Register a plugin in the service
- */
-Architect.prototype.registerPlugin = function(plugin, next) {
-    var app = this;
-    var services = app.services;
-
-    var imports = {};
-    if (plugin.consumes) {
-        plugin.consumes.forEach(function (name) {
-            imports[name] = services[name];
-        });
-    }
-
-    try {
-        plugin.setup(plugin, imports, register);
-    } catch(e) {
-        return app.emit("error", e);
-    }
-
-    function register(err, provided) {
-        if (err) {
-            return app.emit("error", err);
-        }
-
-        plugin.provides.forEach(function (name) {
-            if (!provided.hasOwnProperty(name)) {
-                var err = new Error("Plugin failed to provide " + name + " service. " + JSON.stringify(plugin));
-                return app.emit("error", err);
-            }
-            services[name] = provided[name];
-
-            if (typeof provided[name] != "function")
-                provided[name].name = name;
-
-            app.emit("service", name, services[name]);
-        });
-        if (provided && provided.hasOwnProperty("onDestroy")) {
-            app.destructors.push(provided.onDestroy);
-        }
-
-        plugin.destroy = function() {
-            if (plugin.provides.length) {
-                // @todo, make it possible if all consuming plugins are also dead
-                var err = new Error("Plugins that provide services cannot be destroyed. " + JSON.stringify(plugin));
-                return app.emit("error", err);
-            }
-
-            if (provided && provided.hasOwnProperty("onDestroy")) {
-                app.destructors.splice(app.destructors.indexOf(provided.onDestroy), 1);
-                provided.onDestroy();
-            }
-
-            // delete from config
-            app.config.splice(app.config.indexOf(plugin), 1);
-            app.emit("destroyed", plugin);
-        };
-
-        app.emit("plugin", plugin);
-        next();
-    }
-};
 
 Architect.prototype.getService = function(name) {
     if (!this.services[name]) {
@@ -581,6 +587,7 @@ function createApp(config, callback) {
         callback(err, app);
     }
 
+    return app;
 }
 
 return exports;
