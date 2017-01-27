@@ -300,8 +300,8 @@ else (function () {
                 var module = args[i];
                 var plugin = config[pluginIndexes[name]];
                 plugin.setup = module;
-                plugin.provides = module.provides || [];
-                plugin.consumes = module.consumes || [];
+                plugin.provides = module.provides || plugin.provides || [];
+                plugin.consumes = module.consumes || plugin.consumes || [];
             });
             callback(null, config);
         }, errback);
