@@ -18,6 +18,7 @@ if (typeof module === "object") (function () {
     var exists = require('fs').exists || require('path').exists;
     var realpath = require('fs').realpath;
     var packagePathCache = {};
+    var basePath;
 
     exports.loadConfig = loadConfig;
     exports.resolveConfig = resolveConfig;
@@ -32,6 +33,14 @@ if (typeof module === "object") (function () {
     }
 
     function resolveConfig(config, base, callback) {
+        if(typeof base === 'function') {
+          // probably being called from loadAdditionalConfig, use saved base
+          callback = base;
+          base = basePath;
+        } else {
+          basePath = base;
+        }
+
         if (!callback)
             return resolveConfigSync(config, base);
         else
