@@ -527,20 +527,24 @@ function Architect(config) {
                 callback(null, app);
             }); // What about error state?
             
-            // Check the config - hopefully this works
-            var _sortedPlugins = checkConfig(additionalConfig, function(name){
-                return services[name];
-            });
-            
-            if (ready) {
-                sortedPlugins = _sortedPlugins;
-                // Start Loading additional plugins
-                startPlugins(true);
-            }
-            else {
-                _sortedPlugins.forEach(function(item){
-                    sortedPlugins.push(item);
+            try {
+                // Check the config - hopefully this works
+                var _sortedPlugins = checkConfig(additionalConfig, function(name){
+                    return services[name];
                 });
+                
+                if (ready) {
+                    sortedPlugins = _sortedPlugins;
+                    // Start Loading additional plugins
+                    startPlugins(true);
+                }
+                else {
+                    _sortedPlugins.forEach(function(item){
+                        sortedPlugins.push(item);
+                    });
+                }
+            } catch (err) {
+                callback(err, null);
             }
         });
     }
