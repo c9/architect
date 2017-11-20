@@ -454,8 +454,9 @@ function Architect(config) {
             });
         }
         
-        var m = /^plugins\/([^\/]+)|\/plugins\/[^\/]+\/([^\/]+)/.exec(plugin.packagePath);
-        var packageName = m && (m[1] || m[2]);
+        var m = /^plugins\/([^\/]+)|\/plugins\/([^\/]+)|\/plugins\/[^\/]+\/([^\/]+)|^plugins\\([^\\]+)|\\plugins\\([^\\]+)|\\plugins\\[^\\]+\\([^\\]+)/.exec(plugin.packagePath);
+
+        var packageName = m && (m[1] || m[2] || m[3] || m[4] || m[5] || m[6]);
         if (!app.packages[packageName]) app.packages[packageName] = [];
         
         if (DEBUG) {
