@@ -40,6 +40,15 @@ if (typeof module === "object") (function () {
           basePath = base;
         }
 
+        if (!callback) {
+            return new Promise(function (resolve, reject) {
+                resolveConfigAsync(config, base, (err, config) =>{
+                    if (err) return reject(err);
+                    resolve(config);
+                });
+            });
+        }
+
         resolveConfigAsync(config, base, callback);
     }
 
