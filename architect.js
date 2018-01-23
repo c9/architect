@@ -13,12 +13,11 @@ var DEBUG = typeof location != "undefined" && location.href.match(/debug=[123]/)
 if (typeof module === "object") (function () {
     var dirname = require('path').dirname;
     var resolve = require('path').resolve;
-    var existsSync = require('fs').existsSync || require('path').existsSync;
-    var realpathSync = require('fs').realpathSync;
     var exists = require('fs').exists || require('path').exists;
     var realpath = require('fs').realpath;
     var packagePathCache = {};
     var basePath;
+
 
     exports.loadConfig = loadConfig;
     exports.resolveConfig = resolveConfig;
@@ -41,31 +40,7 @@ if (typeof module === "object") (function () {
           basePath = base;
         }
 
-        if (!callback)
-            return resolveConfigSync(config, base);
-        else
-            resolveConfigAsync(config, base, callback);
-    }
-
-    function resolveConfigSync(config, base) {
-        config.forEach(function (plugin, index) {
-            // Shortcut where string is used for plugin without any options.
-            if (typeof plugin === "string") {
-                plugin = config[index] = { packagePath: plugin };
-            }
-            // The plugin is a package on the disk.  We need to load it.
-            if (plugin.hasOwnProperty("packagePath") && !plugin.hasOwnProperty("setup")) {
-                var defaults = resolveModuleSync(base, plugin.packagePath);
-                Object.keys(defaults).forEach(function (key) {
-                    if (!plugin.hasOwnProperty(key)) {
-                        plugin[key] = defaults[key];
-                    }
-                });
-                plugin.packagePath = defaults.packagePath;
-                plugin.setup = require(plugin.packagePath);
-            }
-        });
-        return config;
+        resolveConfigAsync(config, base, callback);
     }
 
     function resolveConfigAsync(config, base, callback) {
@@ -106,29 +81,6 @@ if (typeof module === "object") (function () {
         }
 
         resolveNext(0);
-    }
-
-    // Loads a module, getting metadata from either it's package.json or export
-    // object.
-    function resolveModuleSync(base, modulePath) {
-        var packagePath;
-        try {
-            packagePath = resolvePackageSync(base, modulePath + "/package.json");
-        }
-        catch (err) {
-            if (err.code !== "ENOENT") throw err;
-        }
-        var metadata = packagePath && require(packagePath).plugin || {};
-        if (packagePath) {
-            modulePath = dirname(packagePath);
-        } else {
-            modulePath = resolvePackageSync(base, modulePath);
-        }
-        var module = require(modulePath);
-        metadata.provides = metadata.provides || module.provides || [];
-        metadata.consumes = metadata.consumes || module.consumes || [];
-        metadata.packagePath = modulePath;
-        return metadata;
     }
 
     // Loads a module, getting metadata from either it's package.json or export
@@ -175,45 +127,6 @@ if (typeof module === "object") (function () {
         });
     }
 
-    // Node style package resolving so that plugins' package.json can be found relative to the config file
-    // It's not the full node require system algorithm, but it's the 99% case
-    // This throws, make sure to wrap in try..catch
-    function resolvePackageSync(base, packagePath) {
-        var originalBase = base;
-        if (!(base in packagePathCache)) {
-            packagePathCache[base] = {};
-        }
-        var cache = packagePathCache[base];
-        if (packagePath in cache) {
-            return cache[packagePath];
-        }
-        var newPath;
-        if (packagePath[0] === "." || packagePath[0] === "/") {
-            newPath = resolve(base, packagePath);
-            if (!existsSync(newPath)) {
-                newPath = newPath + ".js";
-            }
-            if (existsSync(newPath)) {
-                newPath = realpathSync(newPath);
-                cache[packagePath] = newPath;
-                return newPath;
-            }
-        }
-        else {
-            while (base) {
-                newPath = resolve(base, "node_modules", packagePath);
-                if (existsSync(newPath)) {
-                    newPath = realpathSync(newPath);
-                    cache[packagePath] = newPath;
-                    return newPath;
-                }
-                base = resolve(base, '..');
-            }
-        }
-        var err = new Error("Can't find '" + packagePath + "' relative to '" + originalBase + "'");
-        err.code = "ENOENT";
-        throw err;
-    }
 
     function resolvePackage(base, packagePath, callback) {
         var originalBase = base;
@@ -224,8 +137,10 @@ if (typeof module === "object") (function () {
         if (cache.hasOwnProperty(packagePath)) {
             return callback(null, cache[packagePath]);
         }
+        
         if (packagePath[0] === "." || packagePath[0] === "/") {
             var newPath = resolve(base, packagePath);
+
             exists(newPath, function(exists) {
                 if (exists) {
                     realpath(newPath, function(err, newPath) {
