@@ -11,7 +11,6 @@ var DEBUG = typeof location != "undefined" && location.href.match(/debug=[123]/)
 
 // Only define Node-style usage using sync I/O if in node.
 if (typeof module === "object") (function () {
-    var dirname = require('path').dirname;
     var fs = require("fs");
     var path = require("path");
     
@@ -34,40 +33,30 @@ if (typeof module === "object") (function () {
         }
     }
 
-    exports.loadConfig = loadConfig;
     exports.resolveConfig = resolveConfig;
-
-    function loadConfig(configPath, callback) {
-      var config = require(configPath);
-      var base = dirname(configPath);
-
-      return resolveConfig(config, base, callback);
+    
+    function resolveConfigAsync(config, base, callback) {
+        loadPlugin(config, base)
+            .then(config => callback(null, config))
+            .catch(err => callback(err));
+    }
+    
+    function normalize(plugin) {
+        if (typeof plugin === "string")
+            return { packagePath: plugin };
+        return plugin;
     }
 
     async function resolveConfig(config, base, callback) {
-        config = config.map((plugin) => {
-            if (typeof plugin === "string")
-                return { packagePath: plugin };
-            return plugin;
-        });
-
-        let err = null;
+        config = config.map(normalize);
         
-        try {
-            config = await resolveConfigAsync(config, base);
-        }
-        catch (_err) {
-            err = _err;
-            if (!callback) throw err;
-        }
-
         if (callback)
-            return callback(err, config);
+            return resolveConfigAsync(config, base, callback);
 
-        return config;
+        return loadPlugin(config, base);
     }
 
-    async function resolveConfigAsync(config, base, callback) {
+    async function loadPlugin(config, base, callback) {
         for (let plugin of config) {
             if (plugin.hasOwnProperty("setup"))            
                 continue;

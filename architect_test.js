@@ -75,7 +75,7 @@ test("resolve config from basepath + node_modules, async", async (assert) => {
     let packagePath = "_fake/plugin_" + Date.now();
     let packageDir = "/tmp/_architect_test_fixtures/node_modules";
     let fullPath = packageDir + "/" + packagePath + ".js";
-    
+
     let config = [
         packagePath,
     ];
