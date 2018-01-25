@@ -61,12 +61,12 @@ if (typeof module === "object") (function () {
             if (plugin.hasOwnProperty("setup"))            
                 continue;
                 
-            var packagePath = findPackagePath(plugin.packagePath, [].concat(base));
+            let packagePath = findPackagePath(plugin.packagePath, [].concat(base));
             
             if (!packagePath) 
                 throw packageNotFoundError(plugin.packagePath, base);
 
-            var metadata = require(packagePath);
+            let metadata = require(packagePath);
             metadata.packagePath = packagePath;
             
             if (/package[.].json$/.test(packagePath)) {
@@ -85,7 +85,7 @@ if (typeof module === "object") (function () {
     }
     
     function packageNotFoundError(packagePath, base) {
-        var err = new Error(`Can't find ${packagePath} relative to ${base}`);
+        let err = new Error(`Can't find ${packagePath} relative to ${base}`);
         err.code = "ENOENT";
         return err;
     }
