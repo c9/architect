@@ -12,12 +12,6 @@ var DEBUG = typeof location != "undefined" && location.href.match(/debug=[123]/)
 // Only define Node-style usage using sync I/O if in node.
 if (typeof module === "object") (function () {
     var dirname = require('path').dirname;
-    var resolve = require('path').resolve;
-    var exists = require('fs').exists || require('path').exists;
-    var realpath = require('fs').realpath;
-    var packagePathCache = {};
-    var basePath;
-    
     var fs = require("fs");
     var path = require("path");
     
@@ -40,12 +34,9 @@ if (typeof module === "object") (function () {
         }
     }
 
-
     exports.loadConfig = loadConfig;
     exports.resolveConfig = resolveConfig;
 
-    // This is assumed to be used at startup and uses sync I/O as well as can
-    // throw exceptions.  It loads and parses a config file.
     function loadConfig(configPath, callback) {
       var config = require(configPath);
       var base = dirname(configPath);
@@ -53,79 +44,57 @@ if (typeof module === "object") (function () {
       return resolveConfig(config, base, callback);
     }
 
-    function resolveConfig(config, base, callback) {
-        if(typeof base === 'function') {
-          // probably being called from loadAdditionalConfig, use saved base
-          callback = base;
-          base = basePath;
-        } else {
-          basePath = base;
+    async function resolveConfig(config, base, callback) {
+        config = config.map((plugin) => {
+            if (typeof plugin === "string")
+                return { packagePath: plugin };
+            return plugin;
+        });
+
+        let err = null;
+        
+        try {
+            config = await resolveConfigAsync(config, base);
+        }
+        catch (_err) {
+            err = _err;
+            if (!callback) throw err;
         }
 
-        if (!callback) {
-            return new Promise(function (resolve, reject) {
-                resolveConfigAsync(config, base, (err, config) =>{
-                    if (err) return reject(err);
-                    resolve(config);
-                });
+        if (callback)
+            return callback(err, config);
+
+        return config;
+    }
+
+    async function resolveConfigAsync(config, base, callback) {
+        for (let plugin of config) {
+            if (plugin.hasOwnProperty("setup"))            
+                continue;
+                
+            let defaults = await resolveModule(base, plugin.packagePath);
+            
+            Object.keys(defaults).forEach(function (key) {
+                if (!plugin.hasOwnProperty(key)) {
+                    plugin[key] = defaults[key];
+                }
             });
+            plugin.packagePath = defaults.packagePath;
+            plugin.setup = defaults.setup;
         }
-
-        resolveConfigAsync(config, base, callback);
+        
+        return config;
     }
 
-    function resolveConfigAsync(config, base, callback) {
-        function resolveNext(i) {
-            if (i >= config.length) {
-                return callback(null, config);
-            }
-
-            var plugin = config[i];
-
-            // Shortcut where string is used for plugin without any options.
-            if (typeof plugin === "string") {
-                plugin = config[i] = { packagePath: plugin };
-            }
-            // The plugin is a package on the disk.  We need to load it.
-            if (plugin.hasOwnProperty("packagePath") && !plugin.hasOwnProperty("setup")) {
-                resolveModule(base, plugin.packagePath, function(err, defaults) {
-                    if (err) return callback(err);
-
-                    Object.keys(defaults).forEach(function (key) {
-                        if (!plugin.hasOwnProperty(key)) {
-                            plugin[key] = defaults[key];
-                        }
-                    });
-                    plugin.packagePath = defaults.packagePath;
-                    try {
-                        plugin.setup = require(plugin.packagePath);
-                    } catch(e) {
-                        return callback(e);
-                    }
-
-                    return resolveNext(++i);
-                });
-                return;
-            }
-
-            return resolveNext(++i);
-        }
-
-        resolveNext(0);
-    }
-
-    // Loads a module, getting metadata from either it's package.json or export
-    // object.
-    function resolveModule(base, modulePath, callback) {
+    function resolveModule(base, modulePath) {
         var packagePath = findPackagePath(modulePath, [base]);
         
         if (!packagePath) {
             var err = new Error("Can't find '" + packagePath + "' relative to '" + base + "'");
             err.code = "ENOENT";
-            return callback(err);
+            throw err;
         }
-        
-        
+
         var metadata = require(packagePath);
         metadata.packagePath = packagePath;
         
@@ -138,7 +107,7 @@ if (typeof module === "object") (function () {
             metadata.packagePath = modulePath;
         }
         
-        return callback(null, metadata);
+        return metadata;
     }
 
 }());
