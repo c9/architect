@@ -17,6 +17,28 @@ if (typeof module === "object") (function () {
     var realpath = require('fs').realpath;
     var packagePathCache = {};
     var basePath;
+    
+    var fs = require("fs");
+    var path = require("path");
+    
+    function findPackagePath(packagePath, paths) {
+        paths = paths.reduce((paths, basePath) => {
+            while(basePath != "/") {
+                paths.push(path.resolve(basePath, "node_modules", packagePath, "package.json"));
+                paths.push(path.resolve(basePath, packagePath, "package.json"));
+                paths.push(path.resolve(basePath, "node_modules", packagePath + ".js"));
+                paths.push(path.resolve(basePath, packagePath + ".js"));
+                basePath = path.resolve(basePath, "..");
+            }
+            
+            return paths;
+        }, []);
+        
+        for (let packagePath of paths) {
+            if (fs.existsSync(packagePath))
+                return packagePath;
+        }
+    }
 
 
     exports.loadConfig = loadConfig;
@@ -95,107 +117,29 @@ if (typeof module === "object") (function () {
     // Loads a module, getting metadata from either it's package.json or export
     // object.
     function resolveModule(base, modulePath, callback) {
-        resolvePackage(base, modulePath + "/package.json", function(err, packagePath) {
-            //if (err && err.code !== "ENOENT") return callback(err);
-
-            var metadata = {};
-            if (!err) {
-                try {
-                    metadata = packagePath && require(packagePath).plugin || {};
-                } catch(e) {
-                    return callback(e);
-                }
-            }
-
-            (function(next) {
-                if (err) {
-                    //@todo Fabian what is a better way?
-                    resolvePackage(base, modulePath + ".js", next);
-                }
-                else if (packagePath) {
-                    next(null, dirname(packagePath));
-                } 
-                else {
-                    resolvePackage(base, modulePath, next);
-                }
-            })(function(err, modulePath) {
-                if (err) return callback(err);
-
-                var module;
-                try {
-                    module = require(modulePath);
-                } catch(e) {
-                    return callback(e);
-                }
-
-                metadata.provides = metadata.provides || module.provides || [];
-                metadata.consumes = metadata.consumes || module.consumes || [];
-                metadata.packagePath = modulePath;
-                callback(null, metadata);
-            });
-        });
-    }
-
-
-    function resolvePackage(base, packagePath, callback) {
-        var originalBase = base;
-        if (!packagePathCache.hasOwnProperty(base)) {
-            packagePathCache[base] = {};
-        }
-        var cache = packagePathCache[base];
-        if (cache.hasOwnProperty(packagePath)) {
-            return callback(null, cache[packagePath]);
+        var packagePath = findPackagePath(modulePath, [base]);
+        
+        if (!packagePath) {
+            var err = new Error("Can't find '" + packagePath + "' relative to '" + base + "'");
+            err.code = "ENOENT";
+            return callback(err);
         }
         
-        if (packagePath[0] === "." || packagePath[0] === "/") {
-            var newPath = resolve(base, packagePath);
-
-            exists(newPath, function(exists) {
-                if (exists) {
-                    realpath(newPath, function(err, newPath) {
-                        if (err) return callback(err);
-
-                        cache[packagePath] = newPath;
-                        return callback(null, newPath);
-                    });
-                } else {
-                    var err = new Error("Can't find '" + packagePath + "' relative to '" + originalBase + "'");
-                    err.code = "ENOENT";
-                    return callback(err);
-                }
-            });
+        
+        var metadata = require(packagePath);
+        metadata.packagePath = packagePath;
+        
+        if (/package[.].json$/.test(packagePath)) {
+            metadata = metadata.module;
+            modulePath = require.resolve(path.dirname(packagePath));
+            var module = require(modulePath);
+            metadata.provides = metadata.provides || module.provides || [];
+            metadata.consumes = metadata.consumes || module.consumes || [];
+            metadata.packagePath = modulePath;
         }
-        else {
-            tryNext(base);
-        }
-
-        function tryNext(base) {
-            if (base == "/") {
-                var err = new Error("Can't find '" + packagePath + "' relative to '" + originalBase + "'");
-                err.code = "ENOENT";
-                return callback(err);
-            }
-
-            var newPath = resolve(base, "node_modules", packagePath);
-            exists(newPath, function(exists) {
-                if (exists) {
-                    realpath(newPath, function(err, newPath) {
-                        if (err) return callback(err);
-
-                        cache[packagePath] = newPath;
-                        return callback(null, newPath);
-                    });
-                } else {
-                    var nextBase = resolve(base, '..');
-                    if (nextBase === base)
-                        tryNext("/"); // for windows
-                    else
-                        tryNext(nextBase);
-                }
-            });
-        }
+        
+        return callback(null, metadata);
     }
-
 
 }());
 
