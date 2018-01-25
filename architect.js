@@ -11,8 +11,8 @@ var DEBUG = typeof location != "undefined" && location.href.match(/debug=[123]/)
 
 // Only define Node-style usage using sync I/O if in node.
 if (typeof module === "object") (function () {
-    var fs = require("fs");
-    var path = require("path");
+    const fs = require("fs");
+    const path = require("path");
     
     function findPackagePath(packagePath, paths) {
         paths = paths.reduce((paths, basePath) => {
@@ -61,42 +61,33 @@ if (typeof module === "object") (function () {
             if (plugin.hasOwnProperty("setup"))            
                 continue;
                 
-            let defaults = await resolveModule(base, plugin.packagePath);
+            var packagePath = findPackagePath(plugin.packagePath, [].concat(base));
             
-            Object.keys(defaults).forEach(function (key) {
-                if (!plugin.hasOwnProperty(key)) {
-                    plugin[key] = defaults[key];
-                }
-            });
-            plugin.packagePath = defaults.packagePath;
-            plugin.setup = defaults.setup;
+            if (!packagePath) 
+                throw packageNotFoundError(plugin.packagePath, base);
+
+            var metadata = require(packagePath);
+            metadata.packagePath = packagePath;
+            
+            if (/package[.].json$/.test(packagePath)) {
+                metadata = metadata.module;
+                let modulePath = require.resolve(path.dirname(packagePath));
+                let module = require(modulePath);
+                metadata.provides = metadata.provides || module.provides || [];
+                metadata.consumes = metadata.consumes || module.consumes || [];
+                metadata.packagePath = modulePath;
+            }
+
+            Object.assign(plugin, metadata);
         }
         
         return config;
     }
-
-    function resolveModule(base, modulePath) {
-        var packagePath = findPackagePath(modulePath, [base]);
-        
-        if (!packagePath) {
-            var err = new Error("Can't find '" + packagePath + "' relative to '" + base + "'");
-            err.code = "ENOENT";
-            throw err;
-        }
-
-        var metadata = require(packagePath);
-        metadata.packagePath = packagePath;
-        
-        if (/package[.].json$/.test(packagePath)) {
-            metadata = metadata.module;
-            modulePath = require.resolve(path.dirname(packagePath));
-            var module = require(modulePath);
-            metadata.provides = metadata.provides || module.provides || [];
-            metadata.consumes = metadata.consumes || module.consumes || [];
-            metadata.packagePath = modulePath;
-        }
-        
-        return metadata;
+    
+    function packageNotFoundError(packagePath, base) {
+        var err = new Error(`Can't find ${packagePath} relative to ${base}`);
+        err.code = "ENOENT";
+        return err;
     }
 
 }());
