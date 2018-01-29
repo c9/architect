@@ -378,33 +378,21 @@
                 var packageName = m && (m[1] || m[2]);
                 if (!app.packages[packageName]) app.packages[packageName] = [];
 
-                if (DEBUG) {
+                try {
                     recur++;
                     plugin.setup(plugin, imports, register);
-
+                }
+                catch (e) {
+                    e.plugin = plugin;
+                    app.emit("error", e);
+                    throw e;
+                }
+                finally {
                     while (callnext && recur <= 1) {
                         callnext = false;
                         startPlugins(additional);
                     }
                     recur--;
-                }
-                else {
-                    try {
-                        recur++;
-                        plugin.setup(plugin, imports, register);
-                    }
-                    catch (e) {
-                        e.plugin = plugin;
-                        app.emit("error", e);
-                        throw e;
-                    }
-                    finally {
-                        while (callnext && recur <= 1) {
-                            callnext = false;
-                            startPlugins(additional);
-                        }
-                        recur--;
-                    }
                 }
 
                 function register(err, provided) {
