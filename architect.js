@@ -240,79 +240,6 @@
         return sorted;
     }
 
-    function startPlugins(additional, isAdditionalMode) {
-        let app = this;
-
-        let services = {};
-        let sortedPlugins = this.sortedPlugins;
-
-        let recur = 0, callnext, ready;
-
-        var plugin = sortedPlugins.shift();
-        if (!plugin) {
-            ready = true;
-            return app.emit(additional ? "ready-additional" : "ready", app);
-        }
-
-        var imports = {};
-        if (plugin.consumes) {
-            plugin.consumes.forEach(function(name) {
-                imports[name] = services[name];
-            });
-        }
-
-        var m = /^plugins\/([^\/]+)|\/plugins\/[^\/]+\/([^\/]+)/.exec(plugin.packagePath);
-        var packageName = m && (m[1] || m[2]);
-        if (!app.packages[packageName]) app.packages[packageName] = [];
-
-        try {
-            recur++;
-            plugin.setup(plugin, imports, register);
-        }
-        catch (e) {
-            e.plugin = plugin;
-            app.emit("error", e);
-            throw e;
-        }
-        finally {
-            while (callnext && recur <= 1) {
-                callnext = false;
-                startPlugins.call(app, additional);
-            }
-            recur--;
-        }
-
-        function register(err, provided) {
-            if (err) { return app.emit("error", err); }
-            plugin.provides.forEach(function(name) {
-                if (!provided.hasOwnProperty(name)) {
-                    var err = new Error("Plugin failed to provide " + name + " service. " + JSON.stringify(plugin));
-                    err.plugin = plugin;
-                    return app.emit("error", err);
-                }
-                services[name] = provided[name];
-                app.pluginToPackage[name] = {
-                    path: plugin.packagePath,
-                    package: packageName,
-                    version: plugin.version,
-                    isAdditionalMode: isAdditionalMode
-                };
-                app.packages[packageName].push(name);
-
-                app.emit("service", name, services[name], plugin);
-            });
-
-            if (provided && provided.hasOwnProperty("onDestroy"))
-                app.addDestructor(provided.onDestroy);
-
-            app.emit("plugin", plugin);
-
-            if (recur) return (callnext = true);
-            startPlugins.call(app, additional);
-        }
-    }
-
-
 
     class Architect extends EventEmitter {
         get destructors() {
@@ -338,14 +265,43 @@
             this._destructors = [];
         }
 
+        loadAdditionalPlugins(additionalConfig, callback) {
+            // isAdditionalMode = true;
+
+            let app = this;
+            let ready = this.ready;
+
+            exports.resolveConfig(additionalConfig, function(err, additionalConfig) {
+                if (err) return callback(err);
+
+                app.once(ready ? "ready-additional" : "ready", function(app) {
+                    callback(null, app);
+                }); // What about error state?
+
+                // Check the config - hopefully this works
+                var _sortedPlugins = checkConfig(additionalConfig, function(name) {
+                    return app.services[name];
+                });
+
+                if (ready) {
+                    var sortedPlugins = _sortedPlugins;
+                    // Start Loading additional plugins
+                    app.startPlugins(sortedPlugins, true);
+                }
+                else {
+                    _sortedPlugins.forEach(function(item) {
+                        sortedPlugins.push(item);
+                    });
+                }
+            });
+        }
+
+
         constructor(config) {
             super();
             var app = this;
             app.config = config;
-            app.packages = {};
-            app.pluginToPackage = {};
 
-            var isAdditionalMode;
             var services = app.services = {
                 hub: {
                     on: function(name, callback) {
@@ -357,46 +313,25 @@
             // Check the config
             var sortedPlugins = checkConfig(config);
 
-            var recur = 0,
-                callnext, ready;
-
-            function startPlugins(additional) {
+            function startPlugins(sortedPlugins, additional) {
                 var plugin = sortedPlugins.shift();
+
                 if (!plugin) {
-                    ready = true;
+                    app.ready = true;
                     return app.emit(additional ? "ready-additional" : "ready", app);
                 }
 
                 var imports = {};
-                if (plugin.consumes) {
-                    plugin.consumes.forEach(function(name) {
-                        imports[name] = services[name];
-                    });
-                }
+                plugin.consumes.forEach(function(name) {
+                    imports[name] = services[name];
+                });
 
-                var m = /^plugins\/([^\/]+)|\/plugins\/[^\/]+\/([^\/]+)/.exec(plugin.packagePath);
-                var packageName = m && (m[1] || m[2]);
-                if (!app.packages[packageName]) app.packages[packageName] = [];
-
-                try {
-                    recur++;
-                    plugin.setup(plugin, imports, register);
-                }
-                catch (e) {
-                    e.plugin = plugin;
-                    app.emit("error", e);
-                    throw e;
-                }
-                finally {
-                    while (callnext && recur <= 1) {
-                        callnext = false;
-                        startPlugins(additional);
-                    }
-                    recur--;
-                }
+                plugin.setup(plugin, imports, register);
+                startPlugins(sortedPlugins, additional);
 
                 function register(err, provided) {
                     if (err) { return app.emit("error", err); }
+
                     plugin.provides.forEach(function(name) {
                         if (!provided.hasOwnProperty(name)) {
                             var err = new Error("Plugin failed to provide " + name + " service. " + JSON.stringify(plugin));
@@ -404,57 +339,19 @@
                             return app.emit("error", err);
                         }
                         services[name] = provided[name];
-                        app.pluginToPackage[name] = {
-                            path: plugin.packagePath,
-                            package: packageName,
-                            version: plugin.version,
-                            isAdditionalMode: isAdditionalMode
-                        };
-                        app.packages[packageName].push(name);
-
                         app.emit("service", name, services[name], plugin);
                     });
                     if (provided && provided.hasOwnProperty("onDestroy"))
                         app.addDestructor(provided.onDestroy);
 
                     app.emit("plugin", plugin);
-
-                    if (recur) return (callnext = true);
-                    startPlugins(additional);
                 }
             }
 
             // Give createApp some time to subscribe to our "ready" event
-            (typeof process === "object" ? process.nextTick : setTimeout)(startPlugins);
+            (typeof process === "object" ? process.nextTick : setTimeout)(startPlugins.bind(null, sortedPlugins));
 
-            this.loadAdditionalPlugins = function(additionalConfig, callback) {
-                isAdditionalMode = true;
-
-                exports.resolveConfig(additionalConfig, function(err, additionalConfig) {
-                    if (err) return callback(err);
-
-                    app.once(ready ? "ready-additional" : "ready", function(app) {
-                        callback(null, app);
-                    }); // What about error state?
-
-                    // Check the config - hopefully this works
-                    var _sortedPlugins = checkConfig(additionalConfig, function(name) {
-                        return services[name];
-                    });
-
-                    if (ready) {
-                        sortedPlugins = _sortedPlugins;
-                        // Start Loading additional plugins
-                        startPlugins(true);
-                    }
-                    else {
-                        _sortedPlugins.forEach(function(item) {
-                            sortedPlugins.push(item);
-                        });
-                    }
-                });
-            };
-
+            this.startPlugins = startPlugins;
         }
     }
 
