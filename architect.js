@@ -296,19 +296,26 @@
             });
         }
 
+        get services() {
+            if (!this._services) {
+                this._services = {
+                    hub: {
+                        on: function(name, callback) {
+                            this.on(name, callback);
+                        }
+                    }
+                };
+            }
+
+            return this._services;
+        }
+
 
         constructor(config) {
             super();
             var app = this;
             app.config = config;
 
-            var services = app.services = {
-                hub: {
-                    on: function(name, callback) {
-                        app.on(name, callback);
-                    }
-                }
-            };
 
             // Check the config
             var sortedPlugins = checkConfig(config);
@@ -323,7 +330,7 @@
 
                 var imports = {};
                 plugin.consumes.forEach(function(name) {
-                    imports[name] = services[name];
+                    imports[name] = app.services[name];
                 });
 
                 plugin.setup(plugin, imports, register);
@@ -338,8 +345,8 @@
                             err.plugin = plugin;
                             return app.emit("error", err);
                         }
-                        services[name] = provided[name];
-                        app.emit("service", name, services[name], plugin);
+                        app.services[name] = provided[name];
+                        app.emit("service", name, app.services[name], plugin);
                     });
                     if (provided && provided.hasOwnProperty("onDestroy"))
                         app.addDestructor(provided.onDestroy);
