@@ -50,6 +50,9 @@
         async function resolveConfig(config, base, callback) {
             config = config.map(normalize);
 
+            if (typeof base == "function")
+                return resolveConfig(config, null, base);
+
             if (callback)
                 return resolveConfigAsync(config, base, callback);
 
@@ -237,7 +240,104 @@
         return sorted;
     }
 
+    function startPlugins(additional, isAdditionalMode) {
+        let app = this;
+
+        let services = {};
+        let sortedPlugins = this.sortedPlugins;
+
+        let recur = 0, callnext, ready;
+
+        var plugin = sortedPlugins.shift();
+        if (!plugin) {
+            ready = true;
+            return app.emit(additional ? "ready-additional" : "ready", app);
+        }
+
+        var imports = {};
+        if (plugin.consumes) {
+            plugin.consumes.forEach(function(name) {
+                imports[name] = services[name];
+            });
+        }
+
+        var m = /^plugins\/([^\/]+)|\/plugins\/[^\/]+\/([^\/]+)/.exec(plugin.packagePath);
+        var packageName = m && (m[1] || m[2]);
+        if (!app.packages[packageName]) app.packages[packageName] = [];
+
+        try {
+            recur++;
+            plugin.setup(plugin, imports, register);
+        }
+        catch (e) {
+            e.plugin = plugin;
+            app.emit("error", e);
+            throw e;
+        }
+        finally {
+            while (callnext && recur <= 1) {
+                callnext = false;
+                startPlugins.call(app, additional);
+            }
+            recur--;
+        }
+
+        function register(err, provided) {
+            if (err) { return app.emit("error", err); }
+            plugin.provides.forEach(function(name) {
+                if (!provided.hasOwnProperty(name)) {
+                    var err = new Error("Plugin failed to provide " + name + " service. " + JSON.stringify(plugin));
+                    err.plugin = plugin;
+                    return app.emit("error", err);
+                }
+                services[name] = provided[name];
+                app.pluginToPackage[name] = {
+                    path: plugin.packagePath,
+                    package: packageName,
+                    version: plugin.version,
+                    isAdditionalMode: isAdditionalMode
+                };
+                app.packages[packageName].push(name);
+
+                app.emit("service", name, services[name], plugin);
+            });
+
+            if (provided && provided.hasOwnProperty("onDestroy"))
+                app.addDestructor(provided.onDestroy);
+
+            app.emit("plugin", plugin);
+
+            if (recur) return (callnext = true);
+            startPlugins.call(app, additional);
+        }
+    }
+
+
+
     class Architect extends EventEmitter {
+        get destructors() {
+            if (!this._destructors)
+                this._destructors = [];
+
+            return this._destructors;
+        }
+
+        set destructors(val) {
+            this._destructors = [];
+        }
+
+        addDestructor(fn) {
+            this.destructors.push(fn);
+        }
+
+        destroy() {
+            this.destructors.forEach(function(destroy) {
+                destroy();
+            });
+
+            this._destructors = [];
+        }
+
         constructor(config) {
             super();
             var app = this;
@@ -257,7 +357,6 @@
             // Check the config
             var sortedPlugins = checkConfig(config);
 
-            var destructors = [];
             var recur = 0,
                 callnext, ready;
 
@@ -328,7 +427,7 @@
                         app.emit("service", name, services[name], plugin);
                     });
                     if (provided && provided.hasOwnProperty("onDestroy"))
-                        destructors.push(provided.onDestroy);
+                        app.addDestructor(provided.onDestroy);
 
                     app.emit("plugin", plugin);
 
@@ -368,13 +467,6 @@
                 });
             };
 
-            this.destroy = function() {
-                destructors.forEach(function(destroy) {
-                    destroy();
-                });
-
-                destructors = [];
-            };
         }
     }
 
