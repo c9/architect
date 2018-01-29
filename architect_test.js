@@ -92,3 +92,153 @@ test("resolve config from basepath + node_modules, async", async (assert) => {
     await unlink(fullPath);
     assert.end();
 });
+
+test("it should start an architect app (classic)", async (assert) => {
+   const fakeConfig = [
+       {
+           packagePath: "foo/plugin",
+           setup: function(config, imports, register) {
+               register(null);
+           },
+           provides: [],
+           consumes: ["bar.plugin"]
+       },
+       {
+           packagePath: "bar/plugin",
+           setup: function(config, imports, register) {
+               register(null, {
+                   "bar.plugin": {
+                       iamBar: true
+                   }
+               });
+           },
+           provides: ["bar.plugin"],
+           consumes: []
+       }
+    ];
+
+    architect.createApp(fakeConfig, (err) => {
+        assert.ok(!err, "no err");
+        assert.end();        
+    });
+});
+
+test("it detects cyclic dependencies (classic)", async (assert) => {
+   const fakeConfig = [
+       {
+           packagePath: "foo/plugin",
+           setup: function(config, imports, register) {
+           },
+           provides: ["foo.plugin"],
+           consumes: ["bar.plugin"]
+       },
+       {
+           packagePath: "bar/plugin",
+           setup: function(config, imports, register) {
+           },
+           provides: ["bar.plugin"],
+           consumes: ["foo.plugin"]
+       }
+    ];
+
+    architect.createApp(fakeConfig, (err) => {
+        let expect = "Could not resolve dependencies\nConfig contains cyclic dependencies";
+        assert.equal(err.message, expect);
+        assert.end();        
+    });
+});
+
+test("it checks the provides", async (assert) => {
+   const fakeConfig = [
+       {
+           packagePath: "foo/plugin",
+           setup: function(config, imports, register) {
+               register(null);
+           },
+           provides: [],
+           consumes: ["bar.plugin"]
+       },
+       {
+           packagePath: "bar/plugin",
+           setup: function(config, imports, register) {
+               register(null, {});
+           },
+           provides: ["bar.plugin"],
+           consumes: []
+       }
+    ];
+
+    architect.createApp(fakeConfig, (err) => {
+        assert.ok(/Plugin failed to provide bar.plugin service/.test(err.message));
+        assert.end();        
+    });
+});
+
+test("it checks all dependencies", async (assert) => {
+   const fakeConfig = [
+       {
+           packagePath: "foo/plugin",
+           setup: function(config, imports, register) {
+           },
+           provides: ["foo.plugin"],
+           consumes: ["bar.plugin"]
+       },
+       {
+           packagePath: "bar/plugin",
+           setup: function(config, imports, register) {
+           },
+           provides: [],
+           consumes: []
+       }
+    ];
+
+    architect.createApp(fakeConfig, (err) => {
+        let expect = "Could not resolve dependencies\nMissing services: bar.plugin";
+        assert.equal(err.message, expect);
+        assert.end();        
+    });
+});
+
+test("it validates config (consumes must be present)", async (assert) => {
+   const fakeConfig = [
+      {
+          packagePath: "foo/plugin",
+          setup: function(config, imports, register) {},
+          provides: [],
+      }
+    ];
+
+    architect.createApp(fakeConfig, (err) => {
+        assert.ok(/Plugin is missing the consumes array/.test(err.message));
+        assert.end();
+    });
+    
+});
+
+test("it validates config (provides must be present)", async (assert) => {
+   const fakeConfig = [
+      {
+          packagePath: "foo/plugin",
+          setup: function(config, imports, register) {},
+      }
+    ];
+
+    architect.createApp(fakeConfig, (err) => {
+        assert.ok(/Plugin is missing the provides array/.test(err.message));
+        assert.end();
+    });
+    
+});
+
+test("it validates config (setup must be present)", async (assert) => {
+   const fakeConfig = [
+      {
+          packagePath: "foo/plugin",
+      }
+    ];
+
+    architect.createApp(fakeConfig, (err) => {
+        assert.ok(/Plugin is missing the setup function/.test(err.message));
+        assert.end();
+    });
+});
