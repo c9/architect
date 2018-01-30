@@ -310,6 +310,12 @@
             return this._services;
         }
 
+        addService(name, service, plugin) {
+            this.services[name] = service;
+            this.emit("service", name, service, plugin);
+
+        }
+
 
         constructor(config) {
             super();
@@ -334,7 +340,6 @@
                 });
 
                 plugin.setup(plugin, imports, register);
-                startPlugins(sortedPlugins, additional);
 
                 function register(err, provided) {
                     if (err) { return app.emit("error", err); }
@@ -345,13 +350,15 @@
                             err.plugin = plugin;
                             return app.emit("error", err);
                         }
-                        app.services[name] = provided[name];
-                        app.emit("service", name, app.services[name], plugin);
+
+                        app.addService(name, provided[name], plugin);
                     });
+
                     if (provided && provided.hasOwnProperty("onDestroy"))
                         app.addDestructor(provided.onDestroy);
 
                     app.emit("plugin", plugin);
+                    startPlugins(sortedPlugins, additional);
                 }
             }
 
