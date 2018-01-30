@@ -220,7 +220,9 @@ test("it allow loading additionalPlugins", async(assert) => {
 
     let app = architect.createApp(fakeConfig, (err) => {
         assert.ok(!err, "no err");
+    });
 
+    app.on("ready", () => {
         let loadedBar = false;
 
         const fakeAdditional = [
@@ -241,11 +243,8 @@ test("it allow loading additionalPlugins", async(assert) => {
             assert.ok(loadedBar, "loadedBar");
             assert.end();
         });
-
-
     });
 });
-
 
 test("it detects cyclic dependencies (classic)", async(assert) => {
     const fakeConfig = [{

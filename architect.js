@@ -265,35 +265,31 @@
             this._destructors = [];
         }
 
-        loadAdditionalPlugins(additionalConfig, callback) {
-            // isAdditionalMode = true;
+        getService(name) {
+            if (!this.services[name])
+                throw new Error("Service '" + name + "' not found in architect app!");
+            return this.services[name];
+        }
 
+        async loadAdditionalPlugins(additionalConfig, callback) {
             let app = this;
-            let ready = this.ready;
 
-            exports.resolveConfig(additionalConfig, function(err, additionalConfig) {
-                if (err) return callback(err);
-
-                app.once(ready ? "ready-additional" : "ready", function(app) {
-                    callback(null, app);
-                }); // What about error state?
-
-                // Check the config - hopefully this works
-                var _sortedPlugins = checkConfig(additionalConfig, function(name) {
-                    return app.services[name];
-                });
-
-                if (ready) {
-                    var sortedPlugins = _sortedPlugins;
-                    // Start Loading additional plugins
-                    app.startPlugins(sortedPlugins, true);
-                }
-                else {
-                    _sortedPlugins.forEach(function(item) {
-                        sortedPlugins.push(item);
-                    });
-                }
+            app.on(this.ready ? "ready-additional" : "ready", function(app) {
+                callback(null, app);
             });
+
+            const sortedPlugins = checkConfig(additionalConfig, function(name) {
+                return app.services[name];
+            });
+
+            await exports.resolveConfig(additionalConfig);
+
+            this.sortedPlugins = this.sortedPlugins.concat(sortedPlugins);
+
+            if (this.ready)
+                return app.startPlugins();
+
+            callback();
         }
 
         get services() {
@@ -344,52 +340,40 @@
             });
         }
 
+        startPlugins() {
+            var plugin = this.sortedPlugins.shift();
+
+            if (!plugin) {
+                let ready = this.ready;
+
+                this.ready = true;
+                this.emit(ready ? "ready-additional" : "ready", this);
+                return;
+            }
+
+            this.startPlugin(plugin, () => {
+                this.startPlugins();
+            });
+        }
+
 
         constructor(config) {
             super();
-            var app = this;
-            app.config = config;
 
+            this.config = config;
+            this.sortedPlugins = checkConfig(config);
 
-            // Check the config
-            var sortedPlugins = checkConfig(config);
-
-            function startPlugins(sortedPlugins, additional) {
-                var plugin = sortedPlugins.shift();
-
-                if (!plugin) {
-                    app.ready = true;
-                    return app.emit(additional ? "ready-additional" : "ready", app);
-                }
-
-                app.startPlugin(plugin, () => {
-                    startPlugins(sortedPlugins, additional);
-                });
-            }
+            let start = () => this.startPlugins();
 
             // Give createApp some time to subscribe to our "ready" event
-            (typeof process === "object" ? process.nextTick : setTimeout)(startPlugins.bind(null, sortedPlugins));
-
-            this.startPlugins = startPlugins;
+            (typeof process === "object" ? process.nextTick : setTimeout)(start);
         }
+
     }
 
     exports.createApp = createApp;
     exports.Architect = Architect;
 
-    // Architect.prototype = Object.create(EventEmitter.prototype, {constructor:{value:Architect}});
-
-    // Architect.prototype.getService = function(name) {
-    //     if (!this.services[name]) {
-    //         throw new Error("Service '" + name + "' not found in architect app!");
-    //     }
-    //     return this.services[name];
-
-    //     }
-    // }
-
-    // function Architect(config) {
-    // };
 
     // Returns an event emitter that represents the app.  It can emit events.
     // event: ("service" name, service) emitted when a service is ready to be consumed.
