@@ -272,22 +272,18 @@
         }
 
         async loadAdditionalPlugins(additionalConfig, callback) {
-            let app = this;
-
-            app.on(this.ready ? "ready-additional" : "ready", function(app) {
-                callback(null, app);
+            this.on(this.ready ? "ready-additional" : "ready", () => {
+                callback(null, this);
             });
 
-            const sortedPlugins = checkConfig(additionalConfig, function(name) {
-                return app.services[name];
-            });
+            const sortedPlugins = checkConfig(additionalConfig, (name) => this.services[name]);
 
             await exports.resolveConfig(additionalConfig);
 
             this.sortedPlugins = this.sortedPlugins.concat(sortedPlugins);
 
             if (this.ready)
-                return app.startPlugins();
+                return this.startPlugins();
 
             callback();
         }
@@ -359,20 +355,23 @@
 
         constructor(config) {
             super();
-
             this.config = config;
-            this.sortedPlugins = checkConfig(config);
+        }
 
-            let start = () => this.startPlugins();
-
-            // Give createApp some time to subscribe to our "ready" event
-            (typeof process === "object" ? process.nextTick : setTimeout)(start);
+        start() {
+            this.sortedPlugins = checkConfig(this.config);
+            this.startPlugins();
         }
 
     }
 
     exports.createApp = createApp;
     exports.Architect = Architect;
+
+
+    function delay(fn) {
+        (typeof process === "object" ? process.nextTick : setTimeout)(fn);
+    }
 
 
     // Returns an event emitter that represents the app.  It can emit events.
@@ -383,32 +382,20 @@
     // app.services - a hash of all the services in this app
     // app.config - the plugin config that was passed in.
     function createApp(config, callback) {
-        var app;
-        try {
-            app = new Architect(config);
-        }
-        catch (err) {
-            if (!callback) throw err;
-            return callback(err, app);
-        }
-        if (callback) {
-            app.on("error", done);
-            app.on("ready", onReady);
-        }
-        return app;
+        var app = new Architect(config);
 
-        function onReady(app) {
-            done();
-        }
+        app.once("ready", () => callback(null, app));
+        // app.once("error", (err) => callback(err));
 
-        function done(err) {
-            if (err) {
-                app.destroy();
+        delay(() => {
+            try {
+                app.start();
             }
-            app.removeListener("error", done);
-            app.removeListener("ready", onReady);
-            callback(err, app);
-        }
+            catch(err) {
+                if (callback) return callback(err);
+                throw err;
+            }
+        });
 
         return app;
     }

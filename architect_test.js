@@ -183,7 +183,7 @@ test("it should provide imports", async(assert) => {
         }
     ];
 
-    let app = architect.createApp(fakeConfig, (err) => {
+    architect.createApp(fakeConfig, (err, app) => {
         assert.ok(!err, "no err");
 
         app.destroy();
@@ -193,6 +193,7 @@ test("it should provide imports", async(assert) => {
         assert.end();
     });
 });
+
 
 test("it allow loading additionalPlugins", async(assert) => {
     const fakeConfig = [{
