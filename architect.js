@@ -138,6 +138,14 @@
         }
     }());
 
+    class ArchitectError extends Error {
+        constructor(message, plugin = {}) {
+            super();
+            this.message = `${message} ${JSON.stringify(plugin)}`;
+        }
+    }
+
+
 
     // Check a plugin config list for bad dependencies and throw on error
     function checkConfig(config, lookup) {
@@ -146,13 +154,13 @@
         config.forEach(function(plugin) {
             if (plugin.checked) { return; }
             if (!plugin.hasOwnProperty("setup")) {
-                throw new Error("Plugin is missing the setup function " + JSON.stringify(plugin));
+                throw new ArchitectError("Plugin is missing the setup function", plugin);
             }
             if (!plugin.hasOwnProperty("provides")) {
-                throw new Error("Plugin is missing the provides array " + JSON.stringify(plugin));
+                throw new ArchitectError("Plugin is missing the provides array ", plugin);
             }
             if (!plugin.hasOwnProperty("consumes")) {
-                throw new Error("Plugin is missing the consumes array " + JSON.stringify(plugin));
+                throw new ArchitectError("Plugin is missing the consumes array ", plugin);
             }
         });
 
@@ -240,8 +248,28 @@
         return sorted;
     }
 
+    function asyncPlugin(plugin, imports) {
+        return new Promise((resolve, reject) => {
+            plugin.setup(plugin, imports, (err, provided) => {
+                if (err) return reject(err);
+                resolve(provided);
+            });
+        });
+    }
+
+    function setupPlugin(plugin, imports) {
+        if (plugin.setup.length > 2)
+            return asyncPlugin(plugin, imports);
+
+        return plugin.setup(plugin, imports);
+    }
 
     class Architect extends EventEmitter {
+        constructor(config) {
+            super();
+            this.config = config;
+        }
+
         get destructors() {
             if (!this._destructors)
                 this._destructors = [];
@@ -249,16 +277,26 @@
             return this._destructors;
         }
 
-        set destructors(val) {
-            this._destructors = [];
+        get services() {
+            if (!this._services) {
+                let hub = {
+                    on: this.on.bind(this)
+                };
+
+                this._services = { hub };
+            }
+
+            return this._services;
         }
 
-        addDestructor(fn) {
-            this.destructors.push(fn);
+        addDestructor(provided) {
+            if (!provided) return;
+            if (!provided.hasOwnProperty("onDestroy")) return;
+            this.destructors.push(provided.onDestroy);
         }
 
         destroy() {
-            this.destructors.forEach(function(destroy) {
+            this.destructors.forEach((destroy) => {
                 destroy();
             });
 
@@ -272,102 +310,72 @@
         }
 
         async loadAdditionalPlugins(additionalConfig, callback) {
-            this.on(this.ready ? "ready-additional" : "ready", () => {
+            this.once(this._isReady ? "ready-additional" : "ready", () => {
                 callback(null, this);
             });
 
             const sortedPlugins = checkConfig(additionalConfig, (name) => this.services[name]);
-
             await exports.resolveConfig(additionalConfig);
 
             this.sortedPlugins = this.sortedPlugins.concat(sortedPlugins);
 
-            if (this.ready)
-                return this.startPlugins();
-
-            callback();
-        }
-
-        get services() {
-            if (!this._services) {
-                this._services = {
-                    hub: {
-                        on: function(name, callback) {
-                            this.on(name, callback);
-                        }
-                    }
-                };
+            if (this._isReady) {
+                for (let plugin of this.sortedPlugins) {
+                    await this.startPlugin(plugin);
+                }
             }
-
-            return this._services;
+            else callback();
+            this._emitReady();
         }
 
-        addService(name, service, plugin) {
-            this.services[name] = service;
-            this.emit("service", name, service, plugin);
-
-        }
-
-        startPlugin(plugin, next) {
+        async startPlugin(plugin) {
             var imports = {};
 
             plugin.consumes.forEach((name) => {
                 imports[name] = this.services[name];
             });
 
-            plugin.setup(plugin, imports, (err, provided) => {
-                if (err) { return this.emit("error", err); }
 
-                plugin.provides.forEach((name) => {
-                    if (!provided.hasOwnProperty(name)) {
-                        var err = new Error("Plugin failed to provide " + name + " service. " + JSON.stringify(plugin));
-                        err.plugin = plugin;
-                        return this.emit("error", err);
-                    }
+            let provided = await setupPlugin(plugin, imports);
 
-                    this.addService(name, provided[name], plugin);
-                });
+            for (let name of plugin.provides) {
+                if (provided.hasOwnProperty(name))
+                    continue;
 
-                if (provided && provided.hasOwnProperty("onDestroy"))
-                    this.addDestructor(provided.onDestroy);
-
-                this.emit("plugin", plugin);
-                next();
-            });
-        }
-
-        startPlugins() {
-            var plugin = this.sortedPlugins.shift();
-
-            if (!plugin) {
-                let ready = this.ready;
-
-                this.ready = true;
-                this.emit(ready ? "ready-additional" : "ready", this);
-                return;
+                throw new ArchitectError("Plugin failed to provide " + name + " service. ", plugin);
             }
 
-            this.startPlugin(plugin, () => {
-                this.startPlugins();
-            });
+            for (let name of plugin.provides) {
+                let service = provided[name];
+                this.services[name] = service;
+                this.emit("service", name, service, plugin);
+            }
+
+            this.addDestructor(provided);
         }
 
+        async start() {
+            const sortedPlugins = await checkConfig(this.config);
 
-        constructor(config) {
-            super();
-            this.config = config;
+            for (let plugin of sortedPlugins) {
+                await this.startPlugin(plugin);
+            }
+
+            this.sortedPlugins = sortedPlugins;
+            this._emitReady();
+            return this;
         }
 
-        start() {
-            this.sortedPlugins = checkConfig(this.config);
-            this.startPlugins();
+        _emitReady() {
+            let ready = this._isReady;
+            this._isReady = true;
+            this.emit(ready ? "ready-additional" : "ready", this);
         }
 
     }
 
     exports.createApp = createApp;
     exports.Architect = Architect;
-
 
     function delay(fn) {
         (typeof process === "object" ? process.nextTick : setTimeout)(fn);
@@ -384,17 +392,15 @@
     function createApp(config, callback) {
         var app = new Architect(config);
 
-        app.once("ready", () => callback(null, app));
-        // app.once("error", (err) => callback(err));
-
+        // delayed execution allows
+        // the caller to consume the return value
+        // and attach eventlisteners
         delay(() => {
-            try {
-                app.start();
-            }
-            catch(err) {
-                if (callback) return callback(err);
-                throw err;
-            }
+            app.start()
+                .then((app) => {
+                    callback(null, app);
+                })
+                .catch(callback);
         });
 
         return app;
