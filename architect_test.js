@@ -226,18 +226,16 @@ test("it allow loading additionalPlugins", async(assert) => {
     app.on("ready", () => {
         let loadedBar = false;
 
-        const fakeAdditional = [
-            {
-                packagePath: "biz/plugin",
-                setup: function(config, imports, register) {
-                    assert.ok(imports["bar.plugin"].iamBar);
-                    loadedBar = true;
-                    register();
-                },
-                provides: [],
-                consumes: ["bar.plugin"]
-            }
-        ];
+        const fakeAdditional = [{
+            packagePath: "biz/plugin",
+            setup: function(config, imports, register) {
+                assert.ok(imports["bar.plugin"].iamBar);
+                loadedBar = true;
+                register();
+            },
+            provides: [],
+            consumes: ["bar.plugin"]
+        }];
 
         app.loadAdditionalPlugins(fakeAdditional, (err) => {
             assert.ok(!err, "no err");
@@ -354,3 +352,187 @@ test("it validates config (setup must be present)", async(assert) => {
     });
 });
 
+test("it should start an architect app when plugin _returns_ value", async(assert) => {
+    const fakeConfig = [{
+            packagePath: "foo/plugin",
+            setup: function(config, imports, register) {
+                register(null);
+            },
+            provides: [],
+            consumes: ["bar.plugin"]
+        },
+        {
+            packagePath: "bar/plugin",
+            setup: function(config, imports) {
+                return {
+                    "bar.plugin": {
+                        isBar: true
+                    }
+                };
+            },
+            provides: ["bar.plugin"],
+            consumes: []
+        }
+    ];
+
+    architect.createApp(fakeConfig, (err) => {
+        assert.ok(!err, "no err");
+        assert.end();
+    });
+});
+
+test("it should start an architect app when plugin awaits", async(assert) => {
+    const fakeConfig = [{
+            packagePath: "foo/plugin",
+            setup: function(config, imports, register) {
+                register(null);
+            },
+            provides: [],
+            consumes: ["bar.plugin"]
+        },
+        {
+            packagePath: "bar/plugin",
+            setup: async(config, imports) => {
+                let delay = new Promise(resolve => {
+                    setTimeout(resolve, 100);
+                });
+
+                await delay;
+
+                return {
+                    "bar.plugin": {
+                        isBar: true
+                    }
+                };
+            },
+            provides: ["bar.plugin"],
+            consumes: []
+        }
+    ];
+
+    architect.createApp(fakeConfig, (err) => {
+        assert.ok(!err, "no err");
+        assert.end();
+    });
+});
+
+test("it should start an architect app when plugin returns promise", async(assert) => {
+    const fakeConfig = [{
+            packagePath: "foo/plugin",
+            setup: function(config, imports, register) {
+                register(null);
+            },
+            provides: [],
+            consumes: ["bar.plugin"]
+        },
+        {
+            packagePath: "bar/plugin",
+            setup: async(config, imports) => {
+                return new Promise(resolve => {
+                    resolve({
+                        "bar.plugin": {
+                            isBar: true
+                        }
+                    });
+                });
+            },
+            provides: ["bar.plugin"],
+            consumes: []
+        }
+    ];
+
+    architect.createApp(fakeConfig, (err) => {
+        assert.ok(!err, "no err");
+        assert.end();
+    });
+});
+
+test("it should start an architect app when plugin rejects promise", async(assert) => {
+    const fakeConfig = [{
+            packagePath: "foo/plugin",
+            setup: function(config, imports, register) {
+                register(null);
+            },
+            provides: [],
+            consumes: ["bar.plugin"]
+        },
+        {
+            packagePath: "bar/plugin",
+            setup: async(config, imports) => {
+                return new Promise((resolve, reject) => {
+                    reject("Foo error!");
+                });
+            },
+            provides: ["bar.plugin"],
+            consumes: []
+        }
+    ];
+
+    architect.createApp(fakeConfig, (err) => {
+        assert.equal(err, "Foo error!");
+        assert.end();
+    });
+});
+
+test("it should start an architect app when plugin has an error", async(assert) => {
+    const fakeConfig = [{
+            packagePath: "foo/plugin",
+            setup: function(config, imports, register) {
+                register(null);
+            },
+            provides: [],
+            consumes: ["bar.plugin"]
+        },
+        {
+            packagePath: "bar/plugin",
+            setup: async(config, imports) => {
+                let boink = 1;
+                boink();
+            },
+            provides: ["bar.plugin"],
+            consumes: []
+        }
+    ];
+
+    architect.createApp(fakeConfig, (err) => {
+        assert.equal(err.message, "boink is not a function");
+        assert.end();
+    });
+});
+
+test("it should start an architect app with await", async(assert) => {
+    const fakeConfig = [{
+            packagePath: "foo/plugin",
+            setup: function(config, imports, register) {
+                register(null);
+            },
+            provides: [],
+            consumes: ["bar.plugin"]
+        },
+        {
+            packagePath: "bar/plugin",
+            setup: async(config, imports) => {
+                return {
+                    "bar.plugin": {
+                        isBar: true
+                    }
+                };
+            },
+            provides: ["bar.plugin"],
+            consumes: []
+        }
+    ];
+
+    const app = new architect.Architect(fakeConfig);
+
+    app.on("ready", () => assert.end());
+
+    await app.start();
+
+    assert.ok(app.ready);
+
+    let service = app.getService("bar.plugin");
+
+    assert.deepEqual(service, { isBar: true });
+
+});

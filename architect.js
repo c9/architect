@@ -289,6 +289,10 @@
             return this._services;
         }
 
+        get ready() {
+            return this._isReady;
+        }
+
         addDestructor(provided) {
             if (!provided) return;
             if (!provided.hasOwnProperty("onDestroy")) return;
