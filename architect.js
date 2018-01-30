@@ -319,33 +319,29 @@
         startPlugin(plugin, next) {
             var imports = {};
 
-            var app = this;
-
-            plugin.consumes.forEach(function(name) {
-                imports[name] = app.services[name];
+            plugin.consumes.forEach((name) => {
+                imports[name] = this.services[name];
             });
 
-            plugin.setup(plugin, imports, register);
+            plugin.setup(plugin, imports, (err, provided) => {
+                if (err) { return this.emit("error", err); }
 
-            function register(err, provided) {
-                if (err) { return app.emit("error", err); }
-
-                plugin.provides.forEach(function(name) {
+                plugin.provides.forEach((name) => {
                     if (!provided.hasOwnProperty(name)) {
                         var err = new Error("Plugin failed to provide " + name + " service. " + JSON.stringify(plugin));
                         err.plugin = plugin;
-                        return app.emit("error", err);
+                        return this.emit("error", err);
                     }
 
-                    app.addService(name, provided[name], plugin);
+                    this.addService(name, provided[name], plugin);
                 });
 
                 if (provided && provided.hasOwnProperty("onDestroy"))
-                    app.addDestructor(provided.onDestroy);
+                    this.addDestructor(provided.onDestroy);
 
-                app.emit("plugin", plugin);
+                this.emit("plugin", plugin);
                 next();
-            }
+            });
         }
 
 
