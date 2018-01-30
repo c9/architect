@@ -316,6 +316,38 @@
 
         }
 
+        startPlugin(plugin, next) {
+            var imports = {};
+
+            var app = this;
+
+            plugin.consumes.forEach(function(name) {
+                imports[name] = app.services[name];
+            });
+
+            plugin.setup(plugin, imports, register);
+
+            function register(err, provided) {
+                if (err) { return app.emit("error", err); }
+
+                plugin.provides.forEach(function(name) {
+                    if (!provided.hasOwnProperty(name)) {
+                        var err = new Error("Plugin failed to provide " + name + " service. " + JSON.stringify(plugin));
+                        err.plugin = plugin;
+                        return app.emit("error", err);
+                    }
+
+                    app.addService(name, provided[name], plugin);
+                });
+
+                if (provided && provided.hasOwnProperty("onDestroy"))
+                    app.addDestructor(provided.onDestroy);
+
+                app.emit("plugin", plugin);
+                next();
+            }
+        }
+
 
         constructor(config) {
             super();
@@ -334,32 +366,9 @@
                     return app.emit(additional ? "ready-additional" : "ready", app);
                 }
 
-                var imports = {};
-                plugin.consumes.forEach(function(name) {
-                    imports[name] = app.services[name];
-                });
-
-                plugin.setup(plugin, imports, register);
-
-                function register(err, provided) {
-                    if (err) { return app.emit("error", err); }
-
-                    plugin.provides.forEach(function(name) {
-                        if (!provided.hasOwnProperty(name)) {
-                            var err = new Error("Plugin failed to provide " + name + " service. " + JSON.stringify(plugin));
-                            err.plugin = plugin;
-                            return app.emit("error", err);
-                        }
-
-                        app.addService(name, provided[name], plugin);
-                    });
-
-                    if (provided && provided.hasOwnProperty("onDestroy"))
-                        app.addDestructor(provided.onDestroy);
-
-                    app.emit("plugin", plugin);
+                app.startPlugin(plugin, () => {
                     startPlugins(sortedPlugins, additional);
-                }
+                });
             }
 
             // Give createApp some time to subscribe to our "ready" event
