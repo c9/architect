@@ -5,4 +5,6 @@ export NVM_DIR="$HOME/.nvm"
 nvm install 8
 nvm alias default 8
 nvm use default
+which node
+node -v
 

@@ -19,7 +19,7 @@
   ],
   "main": "architect.js",
   "scripts": {
-    "test": "source ~/.profile && tape **/*_test.js"
+    "test": "tape **/*_test.js"
   },
   "repository": {
     "type": "git",
