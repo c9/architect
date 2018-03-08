@@ -18,6 +18,9 @@
     }
   ],
   "main": "architect.js",
+  "scripts": {
+    "test": "tape **/*_test.js"
+  },
   "repository": {
     "type": "git",
     "url": "http://github.com/c9/architect.git"
