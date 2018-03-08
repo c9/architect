@@ -19,7 +19,7 @@
   ],
   "main": "architect.js",
   "scripts": {
-    "test": "bash -c \"nvm; node -v && which node && tape **/*_test.js\""
+    "test": "tape **/*_test.js"
   },
   "repository": {
     "type": "git",
