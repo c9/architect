@@ -19,7 +19,7 @@
   ],
   "main": "architect.js",
   "scripts": {
-    "test": "tape **/*_test.js"
+    "test": "nvm use node 8 && tape **/*_test.js"
   },
   "repository": {
     "type": "git",
