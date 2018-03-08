@@ -19,7 +19,7 @@
   ],
   "main": "architect.js",
   "scripts": {
-    "test": "bash ~/.profile && tape **/*_test.js"
+    "test": "bash -lc \"tape **/*_test.js\""
   },
   "repository": {
     "type": "git",
