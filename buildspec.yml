@@ -4,7 +4,7 @@ phases:
   install:
     commands:
       - echo Entered the install phase...
-      - bash -l build/install-node.sh
+      - bash build/install-node.sh
   pre_build:
     commands:
       - npm install
