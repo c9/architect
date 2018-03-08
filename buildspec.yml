@@ -5,7 +5,7 @@ phases:
     commands:
       - echo Entered the install phase...
       - bash build/install-node.sh
-      - source /root/.bashrc
+      - . /root/.bashrc
   pre_build:
     commands:
       - npm install

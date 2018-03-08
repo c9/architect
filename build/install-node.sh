@@ -7,5 +7,4 @@ nvm alias default 8
 nvm use default
 which node
 node -v
-cat ~/.bashrc
 
