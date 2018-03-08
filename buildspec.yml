@@ -1,0 +1,18 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - echo Entered the install phase...
+      - bash build/install-node.sh
+      - . /root/.bashrc
+  pre_build:
+    commands:
+      - npm install
+  build:
+    commands:
+      - npm test
+  post_build:
+    commands:
+      - echo Entered the post_build phase...
+      - echo Build completed on `date`
