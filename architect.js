@@ -430,6 +430,7 @@ function Architect(config) {
     var services = app.services = {
         hub: {
             on: function (name, callback) {
+                if(typeof(callback) == "function") callback = callback.bind(app);
                 app.on(name, callback);
             }
         }
