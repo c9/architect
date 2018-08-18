@@ -454,8 +454,9 @@ function Architect(config) {
             });
         }
         
-        var m = /^plugins\/([^\/]+)|\/plugins\/[^\/]+\/([^\/]+)/.exec(plugin.packagePath);
-        var packageName = m && (m[1] || m[2]);
+        var m = /^plugins\/([^\/]+)|\/plugins\/([^\/]+)|\/plugins\/[^\/]+\/([^\/]+)|^plugins\\([^\\]+)|\\plugins\\([^\\]+)|\\plugins\\[^\\]+\\([^\\]+)/.exec(plugin.packagePath);
+
+        var packageName = m && (m[1] || m[2] || m[3] || m[4] || m[5] || m[6]);
         if (!app.packages[packageName]) app.packages[packageName] = [];
         
         if (DEBUG) {
@@ -527,20 +528,24 @@ function Architect(config) {
                 callback(null, app);
             }); // What about error state?
             
-            // Check the config - hopefully this works
-            var _sortedPlugins = checkConfig(additionalConfig, function(name){
-                return services[name];
-            });
-            
-            if (ready) {
-                sortedPlugins = _sortedPlugins;
-                // Start Loading additional plugins
-                startPlugins(true);
-            }
-            else {
-                _sortedPlugins.forEach(function(item){
-                    sortedPlugins.push(item);
+            try {
+                // Check the config - hopefully this works
+                var _sortedPlugins = checkConfig(additionalConfig, function(name){
+                    return services[name];
                 });
+                
+                if (ready) {
+                    sortedPlugins = _sortedPlugins;
+                    // Start Loading additional plugins
+                    startPlugins(true);
+                }
+                else {
+                    _sortedPlugins.forEach(function(item){
+                        sortedPlugins.push(item);
+                    });
+                }
+            } catch (err) {
+                callback(err, null);
             }
         });
     }
