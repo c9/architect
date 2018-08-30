@@ -1,0 +1,6 @@
+{
+    "name": "architect.cluster",
+    "version": "0.0.1",
+    "main": "cluster-plugin.js",
+    "plugin": {}
+}
