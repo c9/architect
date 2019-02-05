@@ -200,7 +200,7 @@ if (typeof module === "object") (function () {
             }
         }
         else {
-            while (base) {
+            while (base !== "/") {
                 newPath = resolve(base, "node_modules", packagePath);
                 if (existsSync(newPath)) {
                     newPath = realpathSync(newPath);
