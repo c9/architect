@@ -38,7 +38,7 @@ if (typeof module === "object") (function () {
           callback = arguments[2];
         }
       } else {
-        throw new Error('Unexpected type for configPath (expected config object or string path)');
+        throw new Error('Unexpected type for configPath (expected: string path -or-  array, base path');
       }
 
       return resolveConfig(config, base, callback);
