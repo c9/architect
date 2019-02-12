@@ -84,9 +84,22 @@ The architect module exposes two functions as it's main API.
 
 This function starts an architect config.  The return value is an `Architect` instance.  The optional callback will listen for both "error" and "ready" on the app object and report on which one happens first.
 
-### loadConfig(configPath)
+### loadConfig(configPathOrArray, [base], [callback])
 
-This is a sync function that loads a config file and parses all the plugins into a proper config object for use with `createApp`.  While this uses sync I/O all steps along the way are memoized and I/O only occurs on the first invocation.  It's safe to call this in an event loop provided a small set of configPaths are used.
+This is a sync function prepares the config object for each plugin.
+While this uses sync I/O all steps along the way are memoized and I/O only occurs on the first invocation.  It's safe to call this in an event loop provided a small set of configPaths are used.
+
+It can be used in one of two ways:
+
+#### loadConfig(configPath, [callback])
+
+Loads a config file and parses all the plugins into a proper config object for use with `createApp`.
+Base path of plugins is automatically detected from the base name of the path provided.
+
+#### loadConfig(configArray, base, [callback])
+
+Processes the existing config and adds the initialization function for each plugin present.
+Note that base is required when using this method.
 
 ## Class: Architect
 
@@ -105,4 +118,3 @@ When a plugin registers, this event is emitted.
 ### Event: "ready" (app)
 
 When all plugins are done, the "ready" event is emitted.  The value is the Architect instance itself.
-
