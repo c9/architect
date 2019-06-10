@@ -153,7 +153,7 @@ if (typeof module === "object") (function () {
                 }
                 else if (packagePath) {
                     next(null, dirname(packagePath));
-                } 
+                }
                 else {
                     resolvePackage(base, modulePath, next);
                 }
@@ -200,7 +200,7 @@ if (typeof module === "object") (function () {
             }
         }
         else {
-            while (base) {
+            while (base !== "/") {
                 newPath = resolve(base, "node_modules", packagePath);
                 if (existsSync(newPath)) {
                     newPath = realpathSync(newPath);
@@ -289,7 +289,7 @@ else (function () {
     function resolveConfig(config, base, callback, errback) {
         if (typeof base == "function")
             return resolveConfig(config, "", arguments[1], arguments[2]);
-        
+
         var paths = [], pluginIndexes = {};
         config.forEach(function (plugin, index) {
             // Shortcut where string is used for plugin without any options.
@@ -400,7 +400,7 @@ function checkCycles(config, lookup) {
                 unresolved[name] = false;
             });
         });
-        
+
         Object.keys(unresolved).forEach(function(name) {
             if (unresolved[name] === false)
                 delete unresolved[name];
@@ -425,7 +425,7 @@ function Architect(config) {
     app.config = config;
     app.packages = {};
     app.pluginToPackage = {};
-    
+
     var isAdditionalMode;
     var services = app.services = {
         hub: {
@@ -453,15 +453,15 @@ function Architect(config) {
                 imports[name] = services[name];
             });
         }
-        
+
         var m = /^plugins\/([^\/]+)|\/plugins\/[^\/]+\/([^\/]+)/.exec(plugin.packagePath);
         var packageName = m && (m[1] || m[2]);
         if (!app.packages[packageName]) app.packages[packageName] = [];
-        
+
         if (DEBUG) {
             recur++;
             plugin.setup(plugin, imports, register);
-            
+
             while (callnext && recur <= 1) {
                 callnext = false;
                 startPlugins(additional);
@@ -484,7 +484,7 @@ function Architect(config) {
                 recur--;
             }
         }
-        
+
         function register(err, provided) {
             if (err) { return app.emit("error", err); }
             plugin.provides.forEach(function (name) {
@@ -501,14 +501,14 @@ function Architect(config) {
                     isAdditionalMode: isAdditionalMode
                 };
                 app.packages[packageName].push(name);
-                
+
                 app.emit("service", name, services[name], plugin);
             });
             if (provided && provided.hasOwnProperty("onDestroy"))
                 destructors.push(provided.onDestroy);
 
             app.emit("plugin", plugin);
-            
+
             if (recur) return (callnext = true);
             startPlugins(additional);
         }
@@ -519,19 +519,19 @@ function Architect(config) {
 
     this.loadAdditionalPlugins = function(additionalConfig, callback){
         isAdditionalMode = true;
-        
+
         exports.resolveConfig(additionalConfig, function (err, additionalConfig) {
             if (err) return callback(err);
-            
+
             app.once(ready ? "ready-additional" : "ready", function(app){
                 callback(null, app);
             }); // What about error state?
-            
+
             // Check the config - hopefully this works
             var _sortedPlugins = checkConfig(additionalConfig, function(name){
                 return services[name];
             });
-            
+
             if (ready) {
                 sortedPlugins = _sortedPlugins;
                 // Start Loading additional plugins
