@@ -1,3 +1,5 @@
+import { dirname, resolve } from 'path';
+import { existsSync, realpathSync } from 'fs';
 import Archetype from './archetype';
 
 /**
@@ -9,6 +11,91 @@ import Archetype from './archetype';
  * app.services - a hash of all the services in this app
  * app.config - the plugin config that was passed in.
  */
-export function createApp(config: ArchetectConfig, callback: Function) {
-  return new Archetype();
+export function createApp(config: Archetype.Config, callback: Function) {
+  return new Archetype(config);
+}
+
+export function resolveConfig(config: Archetype.Config, base?: string, callback?: Function): Archetype.Config {
+  const baseDir = base ? base : dirname('.');
+  config.forEach(async (extensionConfig: Archetype.ExtensionConfig, index: number) => {
+    // Shortcut where string is used for extension without any options.
+    if (typeof extensionConfig === 'string') {
+      extensionConfig = config[index] = {packagePath: extensionConfig};
+    }
+    // The extension is a package on the disk.  We need to load it.
+    if (!extensionConfig.class) {
+      const mod = resolveModuleSync(baseDir, extensionConfig.packagePath);
+      Object.keys(mod).forEach((key: string) => {
+        if (!extensionConfig[key]) extensionConfig[key] = mod[key] as any;
+      });
+      extensionConfig.packagePath = mod.packagePath;
+      extensionConfig.class = require(extensionConfig.packagePath).default;
+    }
+  });
+  return config;
+}
+
+// Loads a module, getting metadata from either it's package.json or export
+// object.
+function resolveModuleSync(base: string, modulePath: string) {
+  var packagePath;
+  try {
+    packagePath = resolvePackageSync(base, modulePath + "/package.json");
+  }
+  catch (err) {
+    if (err.code !== "ENOENT") throw err;
+  }
+  var metadata = packagePath && require(packagePath).plugin || {};
+  if (packagePath) {
+    modulePath = dirname(packagePath);
+  } else {
+    modulePath = resolvePackageSync(base, modulePath);
+  }
+  var module = require(modulePath);
+  metadata.provides = metadata.provides || module.provides || [];
+  metadata.consumes = metadata.consumes || module.consumes || [];
+  metadata.packagePath = modulePath;
+  return metadata;
+}
+
+const packagePathCache: {[key: string]: any} = {};
+
+    // Node style package resolving so that plugins' package.json can be found relative to the config file
+// It's not the full node require system algorithm, but it's the 99% case
+// This throws, make sure to wrap in try..catch
+function resolvePackageSync(base: string, packagePath: string) {
+  var originalBase = base;
+  if (!(base in packagePathCache)) {
+      packagePathCache[base] = {};
+  }
+  var cache = packagePathCache[base];
+  if (packagePath in cache) {
+      return cache[packagePath];
+  }
+  var newPath;
+  if (packagePath[0] === "." || packagePath[0] === "/") {
+      newPath = resolve(base, packagePath);
+      if (!existsSync(newPath)) {
+          newPath = newPath + ".js";
+      }
+      if (existsSync(newPath)) {
+          newPath = realpathSync(newPath);
+          cache[packagePath] = newPath;
+          return newPath;
+      }
+  }
+  else {
+      while (base) {
+          newPath = resolve(base, "node_modules", packagePath);
+          if (existsSync(newPath)) {
+              newPath = realpathSync(newPath);
+              cache[packagePath] = newPath;
+              return newPath;
+          }
+          base = resolve(base, '..');
+      }
+  }
+  var err: Archetype.ExtendedError = new Error("Can't find '" + packagePath + "' relative to '" + originalBase + "'");
+  err.code = "ENOENT";
+  throw err;
 }
