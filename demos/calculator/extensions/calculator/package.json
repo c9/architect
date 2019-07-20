@@ -3,8 +3,7 @@
     "version": "0.0.1",
     "main": "calculator.js",
     "private": true,
-
     "plugin": {
-        "consumes": ["http", "auth"]
+        "consumes": ["math"]
     }
 }

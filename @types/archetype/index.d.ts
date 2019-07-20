@@ -1,4 +1,4 @@
-declare namespace Archetype {
+declare module Archetype {
   type ExtensionConfig = {
     packagePath: string;
     checked?: boolean;

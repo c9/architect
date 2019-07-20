@@ -70,6 +70,8 @@
   "include": [
     "archetype/**/*.ts",
     "@types/archetype/**/*.d.ts",
+    "demos/extensions/**/*.ts",
+    "demos/node_modules/**/*.ts",
     "tests/**/*.ts"
   ],
   "exclude": [
