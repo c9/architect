@@ -1,16 +1,19 @@
 import { expect } from 'chai';
 import { EventEmitter } from 'events';
+import { resolve } from 'path';
 import { createApp, resolveConfig } from '@archetype/public-api';
 import Archetype from '@archetype/archetype';
 
 describe('Archetype Public API', () => {
   let app: Archetype;
   let appConfig: Archetype.Config;
+  let basePath: string;
 
   before(() => {
+    basePath = resolve(process.cwd(), 'demos', 'calculator');
     appConfig = resolveConfig([
       {packagePath: 'calculator'}
-    ], __dirname);
+    ], basePath);
     app = createApp(appConfig, () => {});
   });
 
