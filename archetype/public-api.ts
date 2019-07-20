@@ -9,6 +9,6 @@ import Archetype from './archetype';
  * app.services - a hash of all the services in this app
  * app.config - the plugin config that was passed in.
  */
-export function createApp(config: ExtensionConfig, callback: Function) {
+export function createApp(config: ArchetectConfig, callback: Function) {
   return new Archetype();
 }

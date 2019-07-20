@@ -1,3 +1,3 @@
-type ExtensionConfig = {
+type ArchetectConfig = {
   [key: string]: any;
 };

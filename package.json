@@ -7,7 +7,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "test": "mocha -r ts-node/register tests/**/*.spec.ts"
+    "test": "TS_NODE_TRANSPILE_ONLY=true mocha -r ts-node/register -r tsconfig-paths/register tests/**/*.spec.ts"
   },
   "repository": {
     "type": "git",
@@ -18,10 +18,12 @@
   },
   "devDependencies": {
     "@types/chai": "^4.1.7",
+    "@types/expect": "^1.20.4",
     "@types/mocha": "^5.2.7",
     "chai": "^4.2.0",
     "mocha": "^6.1.4",
     "ts-node": "^8.3.0",
+    "tsconfig-paths": "^3.8.0",
     "typescript": "^3.5.3"
   },
   "optionalDependencies": {},

@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import { EventEmitter } from 'events';
-import { createApp } from '../../src/public-api';
-import Archetype from '../../src/archetype';
+import { createApp } from '@archetype/public-api';
+import Archetype from '@archetype/archetype';
 
 describe('Archetype Public API', () => {
 
