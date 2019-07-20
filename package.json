@@ -1,6 +1,6 @@
 {
   "name": "archetype",
-  "description": "A fork of Architect: A Simple yet powerful plugin system for node applications",
+  "description": "A Typescript implementation of Architect: A Simple yet powerful plugin system for node applications",
   "version": "0.0.1",
   "author": "earthican",
   "contributors": [],
