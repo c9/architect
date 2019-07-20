@@ -12,7 +12,7 @@ describe('Archetype Public API', () => {
   before(() => {
     basePath = resolve(process.cwd(), 'demos', 'calculator');
     appConfig = resolveConfig([
-      {packagePath: 'math'}
+      {packagePath: 'math'},
     ], basePath);
     app = createApp(appConfig, () => {});
   });
