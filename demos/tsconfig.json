@@ -3,6 +3,5 @@
   "include": [
     "calculator/extensions/**/*.ts",
     "calculator/node_modules/**/*.ts",
-    "../@types/**/*.d.ts",
   ]
 }
