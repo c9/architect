@@ -1,6 +1,7 @@
 import { dirname, resolve } from 'path';
 import { existsSync, realpathSync } from 'fs';
 import Archetype from './archetype';
+import { ArchetypeConfig, ExtensionConfig, ExtendedError } from './lib';
 
 /**
  * Returns an event emitter that represents the app.  It can emit events.
@@ -11,13 +12,13 @@ import Archetype from './archetype';
  * app.services - a hash of all the services in this app
  * app.config - the plugin config that was passed in.
  */
-export function createApp(config: Archetype.Config, callback: Function) {
+export function createApp(config: ArchetypeConfig, callback: Function) {
   return new Archetype(config);
 }
 
-export function resolveConfig(config: Archetype.Config, base?: string, callback?: Function): Archetype.Config {
+export function resolveConfig(config: ArchetypeConfig, base?: string, callback?: Function): ArchetypeConfig {
   const baseDir = base ? base : dirname('.');
-  config.forEach(async (extensionConfig: Archetype.ExtensionConfig, index: number) => {
+  config.forEach(async (extensionConfig: ExtensionConfig, index: number) => {
     // Shortcut where string is used for extension without any options.
     if (typeof extensionConfig === 'string') {
       extensionConfig = config[index] = {packagePath: extensionConfig};
@@ -95,7 +96,8 @@ function resolvePackageSync(base: string, packagePath: string) {
           base = resolve(base, '..');
       }
   }
-  var err: Archetype.ExtendedError = new Error("Can't find '" + packagePath + "' relative to '" + originalBase + "'");
-  err.code = "ENOENT";
+  var err: ExtendedError = new Error(
+    `Can't find '${packagePath}' relative to '${originalBase}`);
+  err.code = `ENOENT`;
   throw err;
 }

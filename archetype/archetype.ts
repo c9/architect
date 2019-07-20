@@ -1,22 +1,23 @@
 import { EventEmitter } from 'events';
+import { ArchetypeConfig, ExtensionConfig, ExtendedError, Service } from './lib';
 
 export default class Archetype extends EventEmitter {
   packages: {} = {};
   pluginToPackage: {} = {};
-  services: Archetype.Service = {
+  services: Service = {
     hub: {
       on: this.on.bind(this),
     },
   };
   readonly sortedExtensions: any[];
-  constructor(private readonly config: Archetype.Config) {
+  constructor(private readonly config: ArchetypeConfig) {
     super();
     this.sortedExtensions = this.checkConfig(this.config);
   }
 
-  private checkConfig(config: Archetype.Config, lookup?: Function): Archetype.ExtensionConfig[] {
+  private checkConfig(config: ArchetypeConfig, lookup?: Function): ExtensionConfig[] {
     // Check for the required fields in each plugin.
-    config.forEach((extension: Archetype.ExtensionConfig) => {
+    config.forEach((extension: ExtensionConfig) => {
       if (extension.checked) return;
       const debugMsg = JSON.stringify(extension);
       if (!extension.class) {
@@ -33,9 +34,9 @@ export default class Archetype extends EventEmitter {
     return this.checkCycles(config, lookup);
   }
 
-  private checkCycles(config: Archetype.Config, lookup?: Function): Archetype.ExtensionConfig[] {
-    let extensions: Archetype.ExtensionConfig[] = [];
-    config.forEach((extensionConfig: Archetype.ExtensionConfig, index: number) => {
+  private checkCycles(config: ArchetypeConfig, lookup?: Function): ExtensionConfig[] {
+    let extensions: ExtensionConfig[] = [];
+    config.forEach((extensionConfig: ExtensionConfig, index: number) => {
       extensions.push({
         packagePath: extensionConfig.packagePath,
         provides: Object.assign([], extensionConfig.provides || []),
@@ -48,12 +49,12 @@ export default class Archetype extends EventEmitter {
       hub: true,
     };
     let changed = true;
-    let sorted: Archetype.ExtensionConfig[] = [];
+    let sorted: ExtensionConfig[] = [];
 
     while(extensions.length && changed) {
       changed = false;
       let extensions_ = Object.assign([], extensions);
-      extensions_.forEach((extension: Archetype.ExtensionConfig) => {
+      extensions_.forEach((extension: ExtensionConfig) => {
         let consumes = Object.assign([], extension.consumes);
         let resolvedAll = true;
 
@@ -78,7 +79,7 @@ export default class Archetype extends EventEmitter {
 
     if (extensions.length) {
       let unresolved_: {[key: string]: string[]|null} = {};
-      extensions.forEach((extensionConfig: Archetype.ExtensionConfig) => {
+      extensions.forEach((extensionConfig: ExtensionConfig) => {
         delete extensionConfig.config;
         extensionConfig.consumes!.forEach((service: string) => {
           if (unresolved_[service] === null) return;
@@ -99,7 +100,7 @@ export default class Archetype extends EventEmitter {
 
       let unresolvedList = Object.keys(unresolved);
       let resolvedList = Object.keys(resolved);
-      let err: Archetype.ExtendedError = new Error(`Could not resolve dependencies\n`
+      let err: ExtendedError = new Error(`Could not resolve dependencies\n`
         + (unresolvedList.length ? `Missing services: ${unresolvedList}`
         : 'Config contains cyclic dependencies' // TODO print cycles
         ));
