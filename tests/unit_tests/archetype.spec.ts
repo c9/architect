@@ -45,7 +45,12 @@ describe('Archetype', () => {
       if (isMath) {
         expect(extension.add(2, 2)).to.be.equal(4);
       } else if (isCalc) {
-        expect(extension.start(3).add(5).equals()).to.be.equal(8);
+        const eight = extension.start(3).add(5).equals();
+        expect(eight).to.be.equal(8);
+        const sixteen = extension.start(eight).mult(2).equals();
+        expect(sixteen).to.be.equal(16);
+        const four = extension.start(sixteen).div(4).equals();
+        expect(four).to.be.equal(4);
       }
     });
   });
