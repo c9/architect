@@ -1,9 +1,10 @@
 {
-    "name": "calculator",
-    "version": "0.0.1",
-    "main": "calculator.js",
-    "private": true,
-    "plugin": {
-        "consumes": ["math"]
-    }
+  "name": "calculator",
+  "version": "0.0.1",
+  "main": "calculator.js",
+  "private": true,
+  "plugin": {
+    "consumes": ["math"],
+    "provides": ["calculator"]
+  }
 }

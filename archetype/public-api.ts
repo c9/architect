@@ -12,8 +12,34 @@ import { ArchetypeConfig, ExtensionConfig, ExtendedError } from './lib';
  * app.services - a hash of all the services in this app
  * app.config - the plugin config that was passed in.
  */
-export function createApp(config: ArchetypeConfig, callback: Function) {
-  return new Archetype(config);
+export function createApp(config: ArchetypeConfig, callback?: (err?: Error, app?: Archetype) => void): Archetype|null {
+
+  let app: Archetype;
+
+  const onReady = (app: Archetype) => {
+    done();
+  };
+
+  const done = (err?: Error) => {
+    if (err) app.destroy();
+    app.removeListener('error', done);
+    app.removeListener('ready', onReady);
+    if (callback) callback(err, app);
+  };
+
+  try {
+    app = new Archetype(config);
+  } catch (err) {
+    if (!callback) throw err;
+    callback(err, undefined);
+    return null;
+  }
+  if (callback) {
+    app.on('error', done);
+    app.on('ready', onReady);
+  }
+
+  return app;
 }
 
 export function resolveConfig(config: ArchetypeConfig, base?: string, callback?: Function): ArchetypeConfig {
