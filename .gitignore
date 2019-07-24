@@ -1,4 +1,3 @@
 /node_modules/
 /tests/unit_tests/node_modules/**/*.js
-.settings.xml
-.c9revisions
+/dist/

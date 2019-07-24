@@ -72,7 +72,7 @@ function resolveModuleSync(base: string, modulePath: string) {
   catch (err) {
     if (err.code !== "ENOENT") throw err;
   }
-  var metadata = packagePath && require(packagePath).extension || {};
+  var metadata = packagePath && require(packagePath).archetypeExtension || {};
   if (packagePath) {
     modulePath = dirname(packagePath);
   } else {
