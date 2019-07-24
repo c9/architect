@@ -7,6 +7,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
+    "build": "tsc",
     "test": "tsc -p tests/tsconfig.json && copyfiles demos/calculator/**/*.json tests/build/ && TS_NODE_TRANSPILE_ONLY=true mocha -r ts-node/register -r tsconfig-paths/register tests/**/*.spec.ts && rm -rf tests/build"
   },
   "repository": {

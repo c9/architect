@@ -1,8 +1,7 @@
 import { expect, should } from 'chai';
 import { EventEmitter } from 'events';
 import { basename, dirname, resolve } from 'path';
-import { spy } from 'sinon';
-import { createApp, resolveConfig } from '@archetype/public-api';
+import { createApp, resolveConfig } from '@archetype/index';
 import Archetype from '@archetype/archetype';
 import { ArchetypeConfig } from '@archetype/lib';
 
