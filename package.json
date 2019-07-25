@@ -1,34 +1,36 @@
 {
-    "name": "architect",
-    "description": "A Simple yet powerful plugin system for node applications",
-    "version": "0.1.13",
-    "author": "ajax.org B.V. <info@ajax.org>",
-    "contributors": [
-        {
-            "name": "Tim Caswell",
-            "email": "tim@c9.io"
-        },
-        {
-            "name": "Fabian Jakobs",
-            "email": "fabian@c9.io"
-        },
-        {
-            "name": "Christoph Dorn",
-            "email": "christoph@christophdorn.com"
-        }
-    ],
-    "main": "architect.js",
-    "repository": {
-        "type": "git",
-        "url": "http://github.com/c9/architect.git"
-    },
-    "dependencies": {},
-    "devDependencies": {},
-    "optionalDependencies": {},
-    "licenses": [
-        {
-            "type": "MIT",
-            "url": "http://github.com/c9/architect/raw/master/LICENSE"
-        }
-    ]
+  "name": "archetyped",
+  "description": "A Typescript implementation of Architect: A Simple yet powerful plugin system for node applications",
+  "version": "0.0.1",
+  "author": "earthican",
+  "contributors": [],
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "tsc -p tests/tsconfig.json && copyfiles demos/calculator/**/*.json tests/build/ && TS_NODE_TRANSPILE_ONLY=true mocha -r ts-node/register -r tsconfig-paths/register tests/**/*.spec.ts && rm -rf tests/build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://github.com/c9/architect.git"
+  },
+  "dependencies": {
+    "tslib": "^1.10.0"
+  },
+  "devDependencies": {
+    "@types/chai": "^4.1.7",
+    "@types/expect": "^1.20.4",
+    "@types/mocha": "^5.2.7",
+    "@types/sinon": "^7.0.13",
+    "chai": "^4.2.0",
+    "copyfiles": "^2.1.1",
+    "mocha": "^6.1.4",
+    "nyc": "^14.1.1",
+    "sinon": "^7.3.2",
+    "ts-node": "^8.3.0",
+    "tsconfig-paths": "^3.8.0",
+    "typescript": "^3.5.3"
+  },
+  "optionalDependencies": {},
+  "license": "MIT"
 }

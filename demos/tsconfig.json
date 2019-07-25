@@ -1,0 +1,7 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "calculator/extensions/**/*.ts",
+    "calculator/node_modules/**/*.ts",
+  ]
+}
