@@ -100,7 +100,7 @@ The `archetyped` module exposes two functions as it's main API.
 
 ### `createApp(config: ArchetypedConfig, callback?: (err?: Error, app?: Archetyped) => void)`
 
-This function starts an architect config. The return value is an
+This function starts an `ArchetypedConfig`. The return value is an
 `Archetyped` instance. The optional callback will listen for both
 `error` and `ready` on the app object and report on which one happens
 first.

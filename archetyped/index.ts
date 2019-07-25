@@ -6,13 +6,11 @@ import { ArchetypedConfig, ExtensionConfig, ExtendedError } from './lib';
 export * from './lib';
 
 /**
- * Returns an event emitter that represents the app.  It can emit events.
- * @event: ("service" name, service) emitted when a service is ready to be consumed.
- * event: ("plugin", plugin) emitted when a plugin registers.
- * event: ("ready", app) emitted when all plugins are ready.
- * event: ("error", err) emitted when something goes wrong.
- * app.services - a hash of all the services in this app
- * app.config - the plugin config that was passed in.
+ * Returns an event emitter that represents the app.
+ * @param config A list of [[ArchetypedExtension]] configurations.
+ * @param callback A callback function that is called when the app is either
+ *   ready or has thrown an error.
+ * @returns An instance of `Archetyped`
  */
 export function createApp(config: ArchetypedConfig, callback?: (err?: Error, app?: Archetyped) => void): Archetyped | undefined {
 
@@ -48,6 +46,8 @@ export function createApp(config: ArchetypedConfig, callback?: (err?: Error, app
  * Resolves each [[ExtensionConfig]] by importing the config's module.
  * @param config A list of [[ExtensionConfig]]
  * @param base The base path of where to check for installed modules.
+ * @returns An instance of [[ArchetypedConfig]] that contains module data
+ *   of [[ArchetypedExtension]]s.
  */
 export function resolveConfig(config: ArchetypedConfig, base?: string): ArchetypedConfig {
   const baseDir = base ? base : __dirname;
