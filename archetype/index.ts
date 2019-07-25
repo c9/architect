@@ -3,6 +3,8 @@ import { existsSync, realpathSync } from 'fs';
 import Archetype from './archetype';
 import { ArchetypeConfig, ExtensionConfig, ExtendedError } from './lib';
 
+export * from './lib';
+
 /**
  * Returns an event emitter that represents the app.  It can emit events.
  * event: ("service" name, service) emitted when a service is ready to be consumed.
