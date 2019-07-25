@@ -1,7 +1,7 @@
 import { dirname, resolve } from 'path';
 import { existsSync, realpathSync } from 'fs';
-import Archetype from './archetype';
-import { ArchetypeConfig, ExtensionConfig, ExtendedError } from './lib';
+import Archetyped from './archetyped';
+import { ArchetypedConfig, ExtensionConfig, ExtendedError } from './lib';
 
 export * from './lib';
 
@@ -14,11 +14,11 @@ export * from './lib';
  * app.services - a hash of all the services in this app
  * app.config - the plugin config that was passed in.
  */
-export function createApp(config: ArchetypeConfig, callback?: (err?: Error, app?: Archetype) => void): Archetype|null {
+export function createApp(config: ArchetypedConfig, callback?: (err?: Error, app?: Archetyped) => void): Archetyped|null {
 
-  let app: Archetype;
+  let app: Archetyped;
 
-  const onReady = (app: Archetype) => {
+  const onReady = (app: Archetyped) => {
     done();
   };
 
@@ -30,7 +30,7 @@ export function createApp(config: ArchetypeConfig, callback?: (err?: Error, app?
   };
 
   try {
-    app = new Archetype(config);
+    app = new Archetyped(config);
   } catch (err) {
     if (!callback) throw err;
     callback(err, undefined);
@@ -44,7 +44,7 @@ export function createApp(config: ArchetypeConfig, callback?: (err?: Error, app?
   return app;
 }
 
-export function resolveConfig(config: ArchetypeConfig, base?: string, callback?: Function): ArchetypeConfig {
+export function resolveConfig(config: ArchetypedConfig, base?: string, callback?: Function): ArchetypedConfig {
   const baseDir = base ? base : dirname('.');
   config.forEach(async (extensionConfig: ExtensionConfig, index: number) => {
     // Shortcut where string is used for extension without any options.

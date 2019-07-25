@@ -1,13 +1,13 @@
 import { expect } from 'chai';
 import { EventEmitter } from 'events';
 import { basename, dirname, resolve } from 'path';
-import { createApp, resolveConfig } from '@archetype/index';
-import Archetype from '@archetype/archetype';
-import { ArchetypeConfig } from '@archetype/lib';
+import { createApp, resolveConfig } from '@archetyped/index';
+import Archetyped from '@archetyped/archetyped';
+import { ArchetypedConfig } from '@archetyped/lib';
 
-describe('Archetype Public API', () => {
-  let app: Archetype|null;
-  let appConfig: ArchetypeConfig;
+describe('Archetyped Public API', () => {
+  let app: Archetyped|null;
+  let appConfig: ArchetypedConfig;
   let basePath: string;
 
   before(() => {
@@ -19,10 +19,10 @@ describe('Archetype Public API', () => {
     app = createApp(appConfig, () => {});
   });
 
-  it('should create an instance of Archetype' , () => {
+  it('should create an instance of Archetyped' , () => {
     expect(app).to.not.be.null;
     expect(app instanceof EventEmitter).to.be.true;
-    expect(app instanceof Archetype).to.be.true;
+    expect(app instanceof Archetyped).to.be.true;
   });
 
   it('should create and sort extension configs' , () => {

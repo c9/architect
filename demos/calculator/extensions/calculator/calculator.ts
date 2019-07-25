@@ -1,9 +1,9 @@
-import { ArchetypeExtension, ExtensionConfig } from '@archetype/lib';
+import { ArchetypedExtension, ExtensionConfig } from '@archetyped/lib';
 
 /**
  * Simple left-to-right calculator.
  */
-export default class Calculator extends ArchetypeExtension {
+export default class Calculator extends ArchetypedExtension {
   private value: number = 0;
   private math: any;
   constructor(config: ExtensionConfig, imports: any) {

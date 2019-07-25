@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "main": "calculator.js",
   "private": true,
-  "extension": {
+  "archetypeExtension": {
     "consumes": ["math"],
     "provides": ["calculator"]
   }

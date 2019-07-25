@@ -7,4 +7,4 @@ export type ExtensionConfig = {
   [key: string]: any;
 };
 
-export type ArchetypeConfig = ExtensionConfig[];
+export type ArchetypedConfig = ExtensionConfig[];

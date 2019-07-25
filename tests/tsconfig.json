@@ -5,6 +5,6 @@
   },
   "include": [
     "../demos/calculator/extensions/**/*.ts",
-    "../demos/calculator/node_modules/**/*.ts",
+    "../demos/calculator/node_modules/**/*.ts"
   ]
 }

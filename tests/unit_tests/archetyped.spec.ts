@@ -1,12 +1,12 @@
 import { expect, should } from 'chai';
 import { EventEmitter } from 'events';
 import { dirname, resolve } from 'path';
-import { createApp, resolveConfig } from '@archetype/index';
-import Archetype from '@archetype/archetype';
-import { ArchetypeConfig } from '@archetype/lib';
+import { createApp, resolveConfig } from '@archetyped/index';
+import Archetyped from '@archetyped/archetyped';
+import { ArchetypedConfig } from '@archetyped/lib';
 
-describe('Archetype', () => {
-  let appConfig: ArchetypeConfig;
+describe('Archetyped', () => {
+  let appConfig: ArchetypedConfig;
   let basePath: string;
 
   before(() => {
@@ -21,7 +21,7 @@ describe('Archetype', () => {
     createApp(appConfig, (err, app) => {
       expect(app).to.not.be.null;
       expect(app instanceof EventEmitter).to.be.true;
-      expect(app instanceof Archetype).to.be.true;
+      expect(app instanceof Archetyped).to.be.true;
     });
   });
 

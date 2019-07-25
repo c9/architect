@@ -1,8 +1,8 @@
 import { EventEmitter } from 'events';
 import { basename } from 'path';
-import { ArchetypeConfig, ArchetypeExtension, ExtensionConfig, ExtendedError, Service } from './lib';
+import { ArchetypedConfig, ArchetypedExtension, ExtensionConfig, ExtendedError, Service } from './lib';
 
-export default class Archetype extends EventEmitter {
+export default class Archetyped extends EventEmitter {
   packages: {[name: string]: string[]} = {};
   pluginToPackage: any = {};
   services: Service = {
@@ -14,7 +14,7 @@ export default class Archetype extends EventEmitter {
   isAdditionalMode: boolean = false;
 
   readonly sortedExtensions: any[];
-  constructor(private readonly config: ArchetypeConfig) {
+  constructor(private readonly config: ArchetypedConfig) {
     super();
     this.sortedExtensions = this.checkConfig(this.config);
 
@@ -29,7 +29,7 @@ export default class Archetype extends EventEmitter {
     this.destructors = [];
   }
 
-  private checkConfig(config: ArchetypeConfig, lookup?: Function): ExtensionConfig[] {
+  private checkConfig(config: ArchetypedConfig, lookup?: Function): ExtensionConfig[] {
     // Check for the required fields in each plugin.
     config.forEach((extension: ExtensionConfig) => {
       if (extension.checked) return;
@@ -48,7 +48,7 @@ export default class Archetype extends EventEmitter {
     return this.checkCycles(config, lookup);
   }
 
-  private checkCycles(config: ArchetypeConfig, lookup?: Function): ExtensionConfig[] {
+  private checkCycles(config: ArchetypedConfig, lookup?: Function): ExtensionConfig[] {
     let extensions: ExtensionConfig[] = [];
     config.forEach((extensionConfig: ExtensionConfig, index: number) => {
       extensions.push({
@@ -152,7 +152,7 @@ export default class Archetype extends EventEmitter {
     this.emit('ready', this);
   }
 
-  private register(name: string, extension: ArchetypeExtension) {
+  private register(name: string, extension: ArchetypedExtension) {
     if (extension.config.provides) {
       const provided = extension.getServices();
       extension.config.provides.forEach((service: string) => {

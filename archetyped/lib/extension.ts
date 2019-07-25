@@ -1,6 +1,6 @@
 import { ExtensionConfig } from './config';
 
-export class ArchetypeExtension {
+export class ArchetypedExtension {
   private services: any = {}
   constructor(readonly config: ExtensionConfig, readonly imports: any) {}
 
