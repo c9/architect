@@ -7,22 +7,23 @@ export * from './lib';
 
 /**
  * Returns an event emitter that represents the app.  It can emit events.
- * event: ("service" name, service) emitted when a service is ready to be consumed.
+ * @event: ("service" name, service) emitted when a service is ready to be consumed.
  * event: ("plugin", plugin) emitted when a plugin registers.
  * event: ("ready", app) emitted when all plugins are ready.
  * event: ("error", err) emitted when something goes wrong.
  * app.services - a hash of all the services in this app
  * app.config - the plugin config that was passed in.
  */
-export function createApp(config: ArchetypedConfig, callback?: (err?: Error, app?: Archetyped) => void): Archetyped|null {
+export function createApp(config: ArchetypedConfig, callback?: (err?: Error, app?: Archetyped) => void): Archetyped | undefined {
 
-  let app: Archetyped;
+  let app: Archetyped | undefined;
 
   const onReady = (app: Archetyped) => {
     done();
   };
 
   const done = (err?: Error) => {
+    if (!app) return;
     if (err) app.destroy();
     app.removeListener('error', done);
     app.removeListener('ready', onReady);
@@ -31,22 +32,26 @@ export function createApp(config: ArchetypedConfig, callback?: (err?: Error, app
 
   try {
     app = new Archetyped(config);
+    if (callback) {
+      app.on('error', done);
+      app.on('ready', onReady);
+    }
   } catch (err) {
     if (!callback) throw err;
     callback(err, undefined);
-    return null;
-  }
-  if (callback) {
-    app.on('error', done);
-    app.on('ready', onReady);
   }
 
   return app;
 }
 
-export function resolveConfig(config: ArchetypedConfig, base?: string, callback?: Function): ArchetypedConfig {
-  const baseDir = base ? base : dirname('.');
-  config.forEach(async (extensionConfig: ExtensionConfig, index: number) => {
+/**
+ * Resolves each [[ExtensionConfig]] by importing the config's module.
+ * @param config A list of [[ExtensionConfig]]
+ * @param base The base path of where to check for installed modules.
+ */
+export function resolveConfig(config: ArchetypedConfig, base?: string): ArchetypedConfig {
+  const baseDir = base ? base : __dirname;
+  config.forEach((extensionConfig: ExtensionConfig, index: number) => {
     // Shortcut where string is used for extension without any options.
     if (typeof extensionConfig === 'string') {
       extensionConfig = config[index] = {packagePath: extensionConfig};
@@ -64,68 +69,80 @@ export function resolveConfig(config: ArchetypedConfig, base?: string, callback?
   return config;
 }
 
-// Loads a module, getting metadata from either it's package.json or export
-// object.
+/**
+ * Loads a module, getting metadata from either it's package.json or export
+ * object.
+ */
 function resolveModuleSync(base: string, modulePath: string) {
-  var packagePath;
+  let packagePath;
   try {
-    packagePath = resolvePackageSync(base, modulePath + "/package.json");
+    packagePath = resolvePackageSync(base, `${modulePath}/package.json`);
   }
   catch (err) {
-    if (err.code !== "ENOENT") throw err;
+    if (err.code !== 'ENOENT') throw err;
   }
-  var metadata = packagePath && require(packagePath).archetypeExtension || {};
+  const metadata = packagePath && require(packagePath).archetypeExtension || {};
   if (packagePath) {
     modulePath = dirname(packagePath);
   } else {
     modulePath = resolvePackageSync(base, modulePath);
   }
-  var module = require(modulePath);
+  const module = require(modulePath);
   metadata.provides = metadata.provides || module.provides || [];
   metadata.consumes = metadata.consumes || module.consumes || [];
   metadata.packagePath = modulePath;
   return metadata;
 }
 
-const packagePathCache: {[key: string]: any} = {};
+/** A cache of loaded package modules. */
+const packagePathCache: {[packagePath: string]: any} = {};
 
-// Node style package resolving so that plugins' package.json can be found relative to the config file
-// It's not the full node require system algorithm, but it's the 99% case
-// This throws, make sure to wrap in try..catch
+/**
+ * Node style package resolving so that plugins' package.json can be found
+ * relative to the config file.
+ * It's not the full node require system algorithm, but it's the 99% case.
+ * This throws, make sure to wrap in try..catch
+ * @param base The base path of where to check for installed modules.
+ * @param packagePath The path to the package module, relative to `base`.
+ */
 function resolvePackageSync(base: string, packagePath: string) {
-  var originalBase = base;
+  const originalBase = base;
   if (!(base in packagePathCache)) {
-      packagePathCache[base] = {};
+    packagePathCache[base] = {};
   }
-  var cache = packagePathCache[base];
+  const cache = packagePathCache[base];
   if (packagePath in cache) {
-      return cache[packagePath];
+    return cache[packagePath];
   }
-  var newPath;
-  if (packagePath[0] === "." || packagePath[0] === "/") {
-      newPath = resolve(base, packagePath);
-      if (!existsSync(newPath)) {
-          newPath = newPath + ".js";
-      }
-      if (existsSync(newPath)) {
-          newPath = realpathSync(newPath);
-          cache[packagePath] = newPath;
-          return newPath;
-      }
+  const err: ExtendedError = new Error(
+    `Can't find '${packagePath}' relative to '${originalBase}`);
+  err.code = 'ENOENT';
+  let newPath;
+  if (packagePath[0] === '.' || packagePath[0] === '/') {
+    // If `packagePath` is relative to `base`
+    newPath = resolve(base, packagePath);
+    if (!existsSync(newPath)) {
+      newPath = `${newPath}.js`;
+    }
+    if (existsSync(newPath)) {
+      newPath = realpathSync(newPath);
+      cache[packagePath] = newPath;
+      return newPath;
+    }
   }
   else {
-      while (base) {
-          newPath = resolve(base, "node_modules", packagePath);
-          if (existsSync(newPath)) {
-              newPath = realpathSync(newPath);
-              cache[packagePath] = newPath;
-              return newPath;
-          }
-          base = resolve(base, '..');
+    // Check if pacakge is installed in `node_modules` relative to `base`.
+    while (base) {
+      newPath = resolve(base, 'node_modules', packagePath);
+      if (existsSync(newPath)) {
+        newPath = realpathSync(newPath);
+        cache[packagePath] = newPath;
+        return newPath;
       }
+      const parent = resolve(base, '..');
+      if (parent === base) throw err;
+      base = parent;
+    }
   }
-  var err: ExtendedError = new Error(
-    `Can't find '${packagePath}' relative to '${originalBase}`);
-  err.code = `ENOENT`;
   throw err;
 }

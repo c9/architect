@@ -2,18 +2,36 @@ import { EventEmitter } from 'events';
 import { basename } from 'path';
 import { ArchetypedConfig, ArchetypedExtension, ExtensionConfig, ExtendedError, Service } from './lib';
 
+/**
+ * A subclass of [[EventEmitter]] that dynamically loads
+ * [[ArchetypedExtension]]s.
+ * @param config A list of [[ArchetypedExtension]] configurations.
+ * @event "ready" Emitted when all extensions have loaded
+ * @event "service" Emitted when an extension's service has been registered
+ * @event "extension" Emitted when an extension is loaded and registered
+ * @event "error" Emitted when an error occurs
+ */
 export default class Archetyped extends EventEmitter {
+
+  /** A mapping of extension names to the names of the services it provides. */
   packages: {[name: string]: string[]} = {};
-  pluginToPackage: any = {};
+
+  /** A mapping of provided services to the package it's contained in. */
+  serviceToPackage: any = {};
+
+  /** A mapping of provided services names to its functionality. */
   services: Service = {
     hub: {
       on: this.on.bind(this),
     },
   };
-  destructors: Function[] = [];
-  isAdditionalMode: boolean = false;
 
-  readonly sortedExtensions: any[];
+  /** A list of provided extension destroy methods. */
+  destructors: Function[] = [];
+
+  /** A list of [[ArchetypeExtension]] configurations, sorted by dependencies. */
+  readonly sortedExtensions: ArchetypedConfig;
+
   constructor(private readonly config: ArchetypedConfig) {
     super();
     this.sortedExtensions = this.checkConfig(this.config);
@@ -22,6 +40,9 @@ export default class Archetyped extends EventEmitter {
     (typeof process === "object" ? process.nextTick : setTimeout)(this.loadExtensions.bind(this));
   }
 
+  /**
+   * Destroys all extensions that provide destroy methods
+   */
   destroy() {
     this.destructors.forEach((destroy: Function) => {
       destroy();
@@ -29,6 +50,11 @@ export default class Archetyped extends EventEmitter {
     this.destructors = [];
   }
 
+  /**
+   * Checks validity of [[ExtensionConfig]]s and sorts them by dependency.
+   * @param config A list of [[ArchetypedExtension]] configurations.
+   * @param lookup A function to check if a services has been registered.
+   */
   private checkConfig(config: ArchetypedConfig, lookup?: Function): ExtensionConfig[] {
     // Check for the required fields in each plugin.
     config.forEach((extension: ExtensionConfig) => {
@@ -48,6 +74,11 @@ export default class Archetyped extends EventEmitter {
     return this.checkCycles(config, lookup);
   }
 
+  /**
+   * Ensure there are no cyclic dependencies among extensions.
+   * @param config A list of [[ArchetypedExtension]] configurations.
+   * @param lookup A function to check if a services has been registered.
+   */
   private checkCycles(config: ArchetypedConfig, lookup?: Function): ExtensionConfig[] {
     let extensions: ExtensionConfig[] = [];
     config.forEach((extensionConfig: ExtensionConfig, index: number) => {
@@ -126,6 +157,9 @@ export default class Archetyped extends EventEmitter {
     return sorted;
   }
 
+  /**
+   * Loads each extension by instantiating and registering them.
+   */
   private loadExtensions() {
     this.sortedExtensions.forEach((config: ExtensionConfig) => {
       const imports: {[name: string]: Service} = {};
@@ -152,6 +186,9 @@ export default class Archetyped extends EventEmitter {
     this.emit('ready', this);
   }
 
+  /**
+   * Registers an [[ArchetypedExtension]].
+   */
   private register(name: string, extension: ArchetypedExtension) {
     if (extension.config.provides) {
       const provided = extension.getServices();
@@ -164,11 +201,10 @@ export default class Archetyped extends EventEmitter {
           return this.emit('error', err);
         }
         this.services[service] = provided[service];
-        this.pluginToPackage[service] = {
+        this.serviceToPackage[service] = {
           path: extension.config.packagePath,
           package: name,
           version: extension.config.version,
-          isAdditionalMode: this.isAdditionalMode,
         };
         this.packages[name].push(service);
         this.emit('service', service, this.services[service], extension);
