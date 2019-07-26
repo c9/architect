@@ -1,3 +1,5 @@
 /node_modules/
 /tests/unit_tests/node_modules/**/*.js
 /dist/
+/demos/simple-web-server/build/
+/demos/simple-web-server/node_modules/

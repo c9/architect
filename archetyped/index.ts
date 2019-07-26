@@ -12,9 +12,9 @@ export * from './lib';
  *   ready or has thrown an error.
  * @returns An instance of `Archetyped`
  */
-export function createApp(config: ArchetypedConfig, callback?: (err?: Error, app?: Archetyped) => void): Archetyped | undefined {
+export function createApp(config: ArchetypedConfig, callback?: (err?: Error, app?: Archetyped) => void): Archetyped | null {
 
-  let app: Archetyped | undefined;
+  let app: Archetyped | null = null;
 
   const onReady = (app: Archetyped) => {
     done();

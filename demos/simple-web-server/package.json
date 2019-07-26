@@ -1,0 +1,20 @@
+{
+    "private": true,
+    "author": "Justin Cano <jcano001@ucr.edu>",
+    "name": "archetyped-simple-web-server-demo",
+    "description": "extension system experiment",
+    "version": "0.0.0",
+    "repository": {
+        "url": ""
+    },
+    "engines": {
+        "node": "^10.14.1"
+    },
+    "dependencies": {
+        "@types/express": "^4.17.0",
+        "express": "^4.17.1",
+        "typescript": "^3.5.3"
+    },
+    "devDependencies": {},
+    "optionalDependencies": {}
+}

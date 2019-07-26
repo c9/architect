@@ -1,4 +1,4 @@
-import { expect, should } from 'chai';
+import { expect } from 'chai';
 import { EventEmitter } from 'events';
 import { dirname, resolve } from 'path';
 import { createApp, resolveConfig } from '@archetyped/index';

@@ -6,7 +6,7 @@ import Archetyped from '@archetyped/archetyped';
 import { ArchetypedConfig } from '@archetyped/lib';
 
 describe('Archetyped Public API', () => {
-  let app: Archetyped|null;
+  let app: Archetyped | null;
   let appConfig: ArchetypedConfig;
   let basePath: string;
 

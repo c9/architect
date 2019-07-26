@@ -14,4 +14,6 @@ export class ArchetypedExtension {
   getServices() {
     return this.services;
   }
+
+  onAppReady(...args: any[]) {}
 }

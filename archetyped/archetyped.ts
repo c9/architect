@@ -26,8 +26,11 @@ export default class Archetyped extends EventEmitter {
     },
   };
 
-  /** A list of provided extension destroy methods. */
+  /** A list of provided extension `destroy` methods. */
   destructors: Function[] = [];
+
+  /** A list of provided extension `onAppReady` methods. */
+  appReadyExtensionCallbacks: Function[] = [];
 
   /** A list of [[ArchetypeExtension]] configurations, sorted by dependencies. */
   readonly sortedExtensions: ArchetypedConfig;
@@ -177,6 +180,7 @@ export default class Archetyped extends EventEmitter {
       try {
         const extension = new config.class(config, imports);
         this.register(extensionName, extension);
+        this.appReadyExtensionCallbacks.push(extension.onAppReady.bind(extension));
       } catch (err) {
         err.extension = config;
         this.emit('error', err);
@@ -184,6 +188,9 @@ export default class Archetyped extends EventEmitter {
     });
 
     this.emit('ready', this);
+    this.appReadyExtensionCallbacks.forEach((callback: Function) => {
+      callback();
+    });
   }
 
   /**

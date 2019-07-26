@@ -13,7 +13,23 @@ dropped into other `Archetyped` apps.
 ## Install
 
 ```bash
-npm install archetyped
+$ npm install archetyped
+```
+
+## Demo
+
+To start the `simple-web-server` demo, run
+
+```bash
+$ npm run start:http-demo
+...
+HTTP server listening on http://0.0.0.0:9000
+```
+
+The `calculator` demo is used to run unit tests. To run:
+
+```bash
+$ npm test
 ```
 
 ## Extension Interface
@@ -77,9 +93,21 @@ need not actually be in npm, it can be a simple folder in the code tree.
 The `resolveConfig` function below can read an `Archetyped` config object.
 This config object must be a list of `ExtensionConfig` objects.
 
+The demo `simple-web-server` app has a config like this:
+
+```typescript
+const appConfig: ArchetypedConfig = [
+  {
+    packagePath: './extensions/http',
+    host: '0.0.0.0',
+    port: 9000
+  }
+];
+```
+
 The sample calculator app has a config like this:
 
-```js
+```typescript
 const appConfig: ArchetypedConfig = [
   { packagePath: 'math' },
   './extensions/calculator',
