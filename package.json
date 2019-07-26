@@ -11,7 +11,7 @@
     "test": "tsc -p tests/tsconfig.json && copyfiles demos/calculator/**/*.json tests/build/ && TS_NODE_TRANSPILE_ONLY=true mocha -r ts-node/register -r tsconfig-paths/register tests/**/*.spec.ts && rm -rf tests/build",
     "build:http-demo": "DIR=`pwd` && cd demos/simple-web-server && npm install && cd $DIR && tsc -p demos/simple-web-server/tsconfig.json && copyfiles demos/simple-web-server/**/*.{json,html} demos/simple-web-server/build",
     "start:http-demo": "npm run build:http-demo && node demos/simple-web-server/build/demos/simple-web-server/server.js",
-    "clean": "rm -rf tests/build && rm -rf demos/simple-web-server/{build,node_modules}"
+    "clean": "rm -rf dist/ && rm -rf tests/build && rm -rf demos/simple-web-server/build"
   },
   "repository": {
     "type": "git",
