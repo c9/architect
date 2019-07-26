@@ -1,19 +1,17 @@
 {
     "private": true,
-    "author": "Tim Caswell <tim@c9.io>",
-    "name": "architect-demo",
-    "description": "plugin system experiment",
+    "author": "Justin Cano <jcano001@ucr.edu>",
+    "name": "archetyped-calculator-demo",
+    "description": "extension system experiment",
     "version": "0.0.0",
     "repository": {
         "url": ""
     },
     "engines": {
-        "node": "~0.6.11"
+        "node": "^10.14.1"
     },
     "dependencies": {
-        "architect": "~0.1.0",
-        "architect-http": "~0.0.1",
-        "architect-http-static": "~0.0.1"
+        "math": "~0.0.1"
     },
     "devDependencies": {},
     "optionalDependencies": {}
